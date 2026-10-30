@@ -97,11 +97,6 @@ const nextConfig = {
     return {
       beforeFiles: [
         {
-          source: "/",
-          destination: "/aquaforceforautocare",
-          basePath: false,
-        },
-        {
           source: "/aquaforceforgigworkers",
           destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers",
           basePath: false,
