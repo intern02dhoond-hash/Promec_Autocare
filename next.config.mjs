@@ -104,27 +104,27 @@ const nextConfig = {
       beforeFiles: [
         {
           source: "/aquaforceforgigworkers",
-          destination: "https://gig-workers-aquaforce.vercel.app/aquaforceforgigworkers",
+          destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers",
           basePath: false,
         },
         {
           source: "/aquaforceforgigworkers/:path*",
-          destination: "https://gig-workers-aquaforce.vercel.app/aquaforceforgigworkers/:path*",
+          destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers/:path*",
           basePath: false,
         },
         {
           source: "/aquaforceforservicepartner",
-          destination: "https://gig-workers-aquaforce.vercel.app/aquaforceforgigworkers",
+          destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers",
           basePath: false,
         },
         {
           source: "/aquaforceforservicepartner/:path*",
-          destination: "https://gig-workers-aquaforce.vercel.app/aquaforceforgigworkers/:path*",
+          destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers/:path*",
           basePath: false,
         },
         {
           source: "/servicepartner",
-          destination: "https://gig-workers-aquaforce.vercel.app/aquaforceforgigworkers",
+          destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers",
           basePath: false,
         },
       ],

@@ -1,8 +1,24 @@
 {
   "rewrites": [
     {
+      "source": "/aquaforceforgigworkers",
+      "destination": "https://promec-gig-workers.vercel.app/aquaforceforgigworkers"
+    },
+    {
       "source": "/aquaforceforgigworkers/:path*",
-      "destination": "https://gig-workers-aquaforce.vercel.app/aquaforceforgigworkers/:path*"
+      "destination": "https://promec-gig-workers.vercel.app/aquaforceforgigworkers/:path*"
+    },
+    {
+      "source": "/aquaforceforservicepartner",
+      "destination": "https://promec-gig-workers.vercel.app/aquaforceforgigworkers"
+    },
+    {
+      "source": "/aquaforceforservicepartner/:path*",
+      "destination": "https://promec-gig-workers.vercel.app/aquaforceforgigworkers/:path*"
+    },
+    {
+      "source": "/servicepartner",
+      "destination": "https://promec-gig-workers.vercel.app/aquaforceforgigworkers"
     },
     {
       "source": "/",
