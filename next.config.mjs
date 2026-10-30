@@ -10,12 +10,6 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: "/",
-        destination: "/aquaforceforautocare",
-        basePath: false,
-        permanent: false,
-      },
-      {
         source: "/inquiry-form",
         destination: "/inquiryform",
         permanent: false,
@@ -92,7 +86,7 @@ const nextConfig = {
         permanent: false,
       },
       {
-        source: "/:path((?!aquaforceforautocare|aquaforceforgigworkers|aquaforceforservicepartner|servicepartner|_next|favicon.ico).*)",
+        source: "/:path((?!aquaforceforautocare|aquaforceforgigworkers|aquaforceforservicepartner|servicepartner|_next|favicon.ico).+)",
         destination: "/aquaforceforautocare/:path*",
         basePath: false,
         permanent: false,
@@ -102,6 +96,11 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
+        {
+          source: "/",
+          destination: "/aquaforceforautocare",
+          basePath: false,
+        },
         {
           source: "/aquaforceforgigworkers",
           destination: "https://promec-gig-workers.vercel.app/aquaforceforgigworkers",
