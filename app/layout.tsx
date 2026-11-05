@@ -74,6 +74,20 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <head>
+        {/* Google tag (gtag.js) - GTM-W9LLLTN9 */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtm.js?id=GTM-W9LLLTN9"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+            `,
+          }}
+        />
         {/* Meta Pixel Code */}
         <Script
           id="meta-pixel"
