@@ -1,5 +1,65 @@
 [
   {
+    "id": "PROMEC-ORD-1793870580621-S97U",
+    "createdAt": "2026-11-05T10:20:03.069Z",
+    "updatedAt": "2026-11-05T10:20:03.071Z",
+    "orderStatus": "confirmed",
+    "customer": {
+      "fullName": "Abhishek Mehra",
+      "phone": "8910682526",
+      "altPhone": "8697822526",
+      "email": "abhishekkrmehra222@gmail.com",
+      "shippingAddress": "70B, SN Roy Road, Gitanjali Kuthi, 2nd Building, 3rd Floor",
+      "city": "Kolkata",
+      "state": "West Bengal",
+      "pincode": "700038",
+      "gstNumber": "19DDEPM1619D1ZQ",
+      "customerType": "commercial"
+    },
+    "items": [
+      {
+        "productId": "aquaforce-1400",
+        "productName": "Aquaforce® 1400 PSI Tech (With Vacuum, Yellow)",
+        "variantId": "with-vacuum",
+        "variantName": "With Vacuum",
+        "color": "Yellow",
+        "quantity": 1,
+        "unitPriceInINR": 37999,
+        "unitMrpInINR": 49999,
+        "totalAmountInINR": 37999
+      }
+    ],
+    "pricing": {
+      "subtotalInINR": 37999,
+      "discountInINR": 0,
+      "shippingFeeInINR": 0,
+      "handlingFeeInINR": 0,
+      "codFeeInINR": 0,
+      "finalTotalInINR": 37999,
+      "currency": "INR"
+    },
+    "payment": {
+      "method": "FULL_ONLINE",
+      "provider": "RAZORPAY",
+      "mode": "UPI",
+      "status": "captured",
+      "razorpayOrderId": "order_TwRrLY5kuZkgWr",
+      "razorpayPaymentId": "pay_TwS6ih9UuW0lOO",
+      "amountRequiredInPaise": 3799900,
+      "amountPaidInPaise": 3799900,
+      "amountDueInPaise": 0,
+      "razorpayInvoiceId": "inv_TwSTFMk8aCR0kM",
+      "razorpayInvoiceUrl": "https://rzp.io/rzp/p6Y6B0Q"
+    },
+    "fulfillment": {
+      "status": "completed",
+      "waybill": "64729710000523",
+      "shipmentId": "64729710000523",
+      "whatsappSent": true,
+      "emailSent": true
+    }
+  },
+  {
     "id": "PROMEC-ORD-TVWMNCnxp7pU2C",
     "createdAt": "2026-08-29T08:33:00.000Z",
     "updatedAt": "2026-08-29T08:33:00.000Z",

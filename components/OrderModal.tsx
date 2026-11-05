@@ -6720,9 +6720,9 @@ interface CheckoutSubmitOptions {
                       {!isImportantNoteOpen ? (
                         <div className="flex items-center gap-1.5 min-w-0 whitespace-nowrap overflow-hidden leading-tight">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                          <strong className="font-bold text-amber-950 shrink-0">Note:</strong>
+                          <strong className="font-bold text-amber-950 shrink-0">Note – Personal Use Only:</strong>
                           <span className="text-amber-900/90 truncate min-w-0">
-                            This product is designed for personal use only and is not suitable for heavy commercial applications
+                            This model is exclusively designed for personal use &amp; is not intended for professional or business applications
                           </span>
                           <span className="text-slate-400 shrink-0">...</span>
                           <button
@@ -6737,19 +6737,19 @@ interface CheckoutSubmitOptions {
                         <div className="flex items-start gap-1.5 leading-relaxed animate-in fade-in duration-150">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                           <div className="text-amber-900/90 flex-1">
-                            <strong className="font-bold text-amber-950 mr-1">Note:</strong>
+                            <strong className="font-bold text-amber-950 mr-1">Note – Personal Use Only:</strong>
                             <span>
-                              This product is designed for personal use only and is not suitable for heavy commercial applications. Commercial support will not be provided for this model.
+                              This model is exclusively designed for personal use &amp; is not intended for professional or business applications. Commercial usage &amp; support are not covered under this model.
                             </span>
                             <div className="pt-1">
-                              If you require a product for commercial use, please purchase our Commercial Model:{" "}
+                              For business use, please purchase our Commercial Model:{" "}
                               <a
                                 href="https://promectools.in/aquaforceforgigworkers"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="font-bold text-[#0066cc] hover:text-[#004d99] hover:underline inline-flex items-center gap-0.5"
                               >
-                                Commercial Model
+                                service partners
                                 <ArrowUpRight className="w-3 h-3 inline shrink-0" />
                               </a>
                               .{" "}
