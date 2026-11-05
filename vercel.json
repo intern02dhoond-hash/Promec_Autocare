@@ -29,27 +29,27 @@
     },
     {
       "source": "/aquaforceforhomecare",
-      "destination": "/aquaforceforautocare?enquiry=bulk&category=homecare"
+      "destination": "/aquaforceforautocare/inquiryform?category=Home+Care"
     },
     {
       "source": "/aquaforceforcorporatecare",
-      "destination": "/aquaforceforautocare?enquiry=bulk&category=corporate"
+      "destination": "/aquaforceforautocare/inquiryform?category=Corporate+%26+Facility+Care"
     },
     {
       "source": "/aquaforceforhome",
-      "destination": "/aquaforceforautocare?enquiry=bulk&category=homecare"
+      "destination": "/aquaforceforautocare/inquiryform?category=Home+Care"
     },
     {
       "source": "/aquaforceforcorporate",
-      "destination": "/aquaforceforautocare?enquiry=bulk&category=corporate"
+      "destination": "/aquaforceforautocare/inquiryform?category=Corporate+%26+Facility+Care"
     },
     {
       "source": "/homecare",
-      "destination": "/aquaforceforautocare?enquiry=bulk&category=homecare"
+      "destination": "/aquaforceforautocare/inquiryform?category=Home+Care"
     },
     {
       "source": "/corporatecare",
-      "destination": "/aquaforceforautocare?enquiry=bulk&category=corporate"
+      "destination": "/aquaforceforautocare/inquiryform?category=Corporate+%26+Facility+Care"
     },
     {
       "source": "/thank-you",
@@ -78,6 +78,10 @@
     {
       "source": "/inquiryform",
       "destination": "/aquaforceforautocare/inquiryform"
+    },
+    {
+      "source": "/inquiryform/:path*",
+      "destination": "/aquaforceforautocare/inquiryform/:path*"
     },
     {
       "source": "/inquiry-form",

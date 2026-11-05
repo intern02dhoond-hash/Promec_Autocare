@@ -25,6 +25,13 @@ function ThankYouContent() {
   const formattedCodBalance = Number(codBalance).toLocaleString("en-IN");
 
   useEffect(() => {
+    const type = searchParams.get("type");
+    if (type === "inquiry" || searchParams.get("enquiry") === "bulk") {
+      router.replace(`/inquiryform/thank-you?${searchParams.toString()}`);
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
     const numericAmount = Number(amount) || 37999;
 
     // Trigger Meta Pixel Purchase Conversion Event

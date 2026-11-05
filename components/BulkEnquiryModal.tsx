@@ -407,7 +407,7 @@ export default function BulkEnquiryModal({
                   Inquiry Form
                 </h2>
                 {initialOptions?.category && (
-                  <span className="text-[11px] font-bold font-montserrat px-2.5 py-0.5 rounded-full bg-blue-50 text-[#005DA6] border border-blue-200 shrink-0">
+                  <span className="text-[10px] sm:text-[11px] font-bold font-montserrat px-2 sm:px-2.5 py-0.5 rounded-full bg-blue-50 text-[#005DA6] border border-blue-200 shrink-0 whitespace-nowrap">
                     {initialOptions.category}
                   </span>
                 )}

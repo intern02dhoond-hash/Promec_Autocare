@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
-import BulkEnquiryModal from "@/components/BulkEnquiryModal";
+import React, { createContext, useContext } from "react";
+import { useRouter } from "next/navigation";
 
 export interface BulkEnquiryOptions {
   category?: string;
@@ -22,24 +22,26 @@ const BulkEnquiryContext = createContext<BulkEnquiryContextType>({
 });
 
 export function BulkEnquiryProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [initialOptions, setInitialOptions] = useState<BulkEnquiryOptions | undefined>(undefined);
+  const router = useRouter();
 
   const openBulkModal = (options?: BulkEnquiryOptions | React.MouseEvent | any) => {
-    // If passed as an event handler (e.g. onClick={openBulkModal}), ignore the event object
-    if (options && (options.nativeEvent || options._reactName || typeof options.preventDefault === "function")) {
-      setInitialOptions(undefined);
-    } else {
-      setInitialOptions(options);
+    let cat = "";
+    if (
+      options &&
+      typeof options === "object" &&
+      !options.nativeEvent &&
+      !options._reactName &&
+      typeof options.preventDefault !== "function"
+    ) {
+      if (options.category) cat = options.category;
     }
-    setIsOpen(true);
-  };
-  const closeBulkModal = () => {
-    setIsOpen(false);
-    setInitialOptions(undefined);
+    const query = cat ? `?category=${encodeURIComponent(cat)}` : "";
+    router.push(`/inquiryform${query}`);
   };
 
-  // URL query param & hash listener for auto-triggering bulk enquiry form
+  const closeBulkModal = () => {};
+
+  // URL query param & hash listener: redirect to standalone /inquiryform page instead of modal
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -62,15 +64,12 @@ export function BulkEnquiryProvider({ children }: { children: React.ReactNode })
 
         if (isBulk || isHomeCare || isCorporate) {
           let cat = "";
-          let notes = "";
           if (isHomeCare) {
             cat = "Home Care";
-            notes = "Requirement for Home Care & Domestic cleaning solutions";
           } else if (isCorporate) {
             cat = "Corporate & Facility Care";
-            notes = "Requirement for Corporate & Facility Care / Commercial Fleet solutions";
           }
-          openBulkModal(cat ? { category: cat, notes } : undefined);
+          openBulkModal(cat ? { category: cat } : undefined);
         }
       } catch (e) {
         console.error("[BulkEnquiryProvider] checkUrl error:", e);
@@ -83,13 +82,15 @@ export function BulkEnquiryProvider({ children }: { children: React.ReactNode })
   }, []);
 
   return (
-    <BulkEnquiryContext.Provider value={{ isOpen, initialOptions, openBulkModal, closeBulkModal }}>
+    <BulkEnquiryContext.Provider
+      value={{
+        isOpen: false,
+        initialOptions: undefined,
+        openBulkModal,
+        closeBulkModal,
+      }}
+    >
       {children}
-      <BulkEnquiryModal
-        isOpen={isOpen}
-        initialOptions={initialOptions}
-        onClose={closeBulkModal}
-      />
     </BulkEnquiryContext.Provider>
   );
 }

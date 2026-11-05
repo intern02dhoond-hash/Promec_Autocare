@@ -44,7 +44,7 @@ const CATEGORY_ITEMS = [
   {
     name: "Home Care",
     desc: "Driveway & domestic cleaning",
-    action: "bulk_modal",
+    href: "/inquiryform?category=Home+Care",
     icon: Home,
     iconColor: "text-emerald-400",
     iconBg: "bg-emerald-500/20 border-emerald-500/30",
@@ -52,7 +52,7 @@ const CATEGORY_ITEMS = [
   {
     name: "Corporate & Facility Care",
     desc: "Industrial & commercial fleets",
-    action: "bulk_modal",
+    href: "/inquiryform?category=Corporate+%26+Facility+Care",
     icon: Building2,
     iconColor: "text-purple-400",
     iconBg: "bg-purple-500/20 border-purple-500/30",
@@ -188,38 +188,6 @@ export default function Header() {
                 <div className="w-[290px] bg-black/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-2 space-y-1">
                   {CATEGORY_ITEMS.map((item) => {
                     const Icon = item.icon;
-                    if (item.action === "bulk_modal") {
-                      return (
-                        <button
-                          key={item.name}
-                          type="button"
-                          onClick={() => {
-                            setCategoriesOpen(false);
-                            openBulkModal({
-                              category: item.name,
-                              notes:
-                                item.name === "Home Care"
-                                  ? "Requirement for Home Care & Domestic cleaning solutions"
-                                  : "Requirement for Corporate & Facility Care / Commercial Fleet solutions",
-                            });
-                          }}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-all text-left cursor-pointer group/item"
-                        >
-                          <div className={`w-8 h-8 rounded-lg ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0 border transition-transform group-hover/item:scale-105`}>
-                            <Icon size={16} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[13.5px] font-bold text-white font-montserrat truncate">
-                              {item.name}
-                            </div>
-                            <div className="text-[11px] text-white/60 font-open-sans truncate">
-                              {item.desc}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    }
-
                     const isExternal = item.href?.startsWith("http");
                     const linkClassName =
                       "flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-all text-left group/item";
@@ -387,28 +355,6 @@ export default function Header() {
                   <div className="pl-3 pr-1 py-1 space-y-1 animate-in fade-in duration-150">
                     {CATEGORY_ITEMS.map((item) => {
                       const Icon = item.icon;
-                      if (item.action === "bulk_modal") {
-                        return (
-                          <button
-                            key={item.name}
-                            type="button"
-                            onClick={() => {
-                              setOpen(false);
-                              openBulkModal({
-                                category: item.name,
-                                notes:
-                                  item.name === "Home Care"
-                                    ? "Requirement for Home Care & Domestic cleaning solutions"
-                                    : "Requirement for Corporate & Facility Care / Commercial Fleet solutions",
-                              });
-                            }}
-                            className="w-full flex items-center gap-2.5 py-2 px-3 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 text-left cursor-pointer"
-                          >
-                            <Icon size={15} className={item.iconColor} />
-                            <span>{item.name}</span>
-                          </button>
-                        );
-                      }
                       const isExternal = item.href?.startsWith("http");
                       const mobileClass =
                         "flex items-center gap-2.5 py-2 px-3 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10";
@@ -512,38 +458,6 @@ export default function Header() {
             <div className="space-y-1">
               {CATEGORY_ITEMS.map((item) => {
                 const Icon = item.icon;
-                if (item.action === "bulk_modal") {
-                  return (
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() => {
-                        setMobileNavbarCategoriesOpen(false);
-                        openBulkModal({
-                          category: item.name,
-                          notes:
-                            item.name === "Home Care"
-                              ? "Requirement for Home Care & Domestic cleaning solutions"
-                              : "Requirement for Corporate & Facility Care / Commercial Fleet solutions",
-                        });
-                      }}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-all text-left cursor-pointer group/item"
-                    >
-                      <div className={`w-8 h-8 rounded-lg ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0 border transition-transform group-hover/item:scale-105`}>
-                        <Icon size={16} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13.5px] font-bold text-white font-montserrat flex items-center gap-2 truncate">
-                          <span className="truncate">{item.name}</span>
-                        </div>
-                        <div className="text-[11px] text-white/60 font-open-sans truncate">
-                          {item.desc}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                }
-
                 const isExternal = item.href?.startsWith("http");
                 if (isExternal) {
                   return (

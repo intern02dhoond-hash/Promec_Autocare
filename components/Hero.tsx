@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useOrderModal } from "@/context/OrderModalContext";
 import { useBulkEnquiry } from "@/context/BulkEnquiryContext";
@@ -146,12 +147,12 @@ export default function Hero() {
                 <span>BUY NOW</span>
                 <ArrowRight className="w-3.5 h-3.5 shrink-0" />
               </button>
-              <button
-                onClick={openBulkModal}
+              <Link
+                href="/inquiryform"
                 className="w-full inline-flex items-center justify-center border border-white/70 bg-black/40 backdrop-blur-xs active:border-white text-white active:bg-white/15 font-open-sans text-[10px] xs:text-[11px] font-bold tracking-tight xs:tracking-normal uppercase py-2.5 px-1 rounded-[6px] transition-all active:scale-[0.98] drop-shadow text-center cursor-pointer whitespace-nowrap"
               >
                 Inquire Bulk Quantity
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -204,12 +205,12 @@ export default function Hero() {
                 <span>BUY NOW</span>
                 <ArrowRight className="w-4 h-4 shrink-0" />
               </button>
-              <button
-                onClick={openBulkModal}
+              <Link
+                href="/inquiryform"
                 className="inline-flex items-center border border-white/60 hover:border-white text-white hover:bg-white/15 bg-black/20 backdrop-blur-xs font-open-sans text-xs sm:text-sm font-black tracking-wider uppercase px-6 sm:px-7 py-3.5 rounded-[4px] transition-all active:scale-[0.98] drop-shadow cursor-pointer"
               >
                 Inquire Bulk Quantity
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -297,12 +298,12 @@ export default function Hero() {
                 <span>BUY NOW</span>
                 <ArrowRight className="w-3.5 h-3.5 shrink-0" />
               </button>
-              <button
-                onClick={openBulkModal}
+              <Link
+                href="/inquiryform"
                 className="w-full inline-flex items-center justify-center border border-white/70 bg-black/25 backdrop-blur-xs active:border-white text-white active:bg-white/15 font-open-sans text-[10px] xs:text-[11px] font-bold tracking-tight xs:tracking-normal uppercase py-3 px-1 rounded-[6px] transition-all active:scale-[0.98] drop-shadow text-center cursor-pointer whitespace-nowrap"
               >
                 Inquire Bulk Quantity
-              </button>
+              </Link>
             </div>
 
             {/* Micro Footer Note */}
@@ -354,12 +355,12 @@ export default function Hero() {
                 <span>BUY NOW</span>
                 <ArrowRight className="w-4 h-4 shrink-0" />
               </button>
-              <button
-                onClick={openBulkModal}
+              <Link
+                href="/inquiryform"
                 className="inline-flex items-center border border-white/60 hover:border-white text-white hover:bg-white/15 bg-black/20 backdrop-blur-xs font-open-sans text-xs sm:text-sm font-black tracking-wider uppercase px-6 sm:px-7 py-3.5 rounded-[4px] transition-all active:scale-[0.98] drop-shadow cursor-pointer"
               >
                 Inquire Bulk Quantity
-              </button>
+              </Link>
             </div>
 
             {/* Micro Footer Note */}
@@ -445,12 +446,12 @@ export default function Hero() {
                 <span>BUY NOW</span>
                 <ArrowRight className="w-3.5 h-3.5 shrink-0" />
               </button>
-              <button
-                onClick={openBulkModal}
+              <Link
+                href="/inquiryform"
                 className="w-full inline-flex items-center justify-center border border-white/70 bg-black/25 backdrop-blur-xs active:border-white text-white active:bg-white/15 font-open-sans text-[10px] xs:text-[11px] font-bold tracking-tight xs:tracking-normal uppercase py-3 px-1 rounded-[6px] transition-all active:scale-[0.98] drop-shadow text-center cursor-pointer whitespace-nowrap"
               >
                 Inquire Bulk Quantity
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -496,12 +497,12 @@ export default function Hero() {
                   <span>BUY NOW</span>
                   <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
-                <button
-                  onClick={openBulkModal}
+                <Link
+                  href="/inquiryform"
                   className="inline-flex items-center border border-white/80 hover:border-white text-white hover:bg-white/15 bg-black/20 backdrop-blur-xs font-open-sans text-xs sm:text-sm font-black tracking-wider uppercase px-5 sm:px-6 py-2.5 rounded-[4px] transition-all active:scale-[0.98] drop-shadow cursor-pointer"
                 >
                   Inquire Bulk Quantity
-                </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -583,12 +584,12 @@ export default function Hero() {
                 <span>BUY NOW</span>
                 <ArrowRight className="w-3.5 h-3.5 shrink-0" />
               </button>
-              <button
-                onClick={openBulkModal}
+              <Link
+                href="/inquiryform"
                 className="w-full inline-flex items-center justify-center border border-white/70 bg-black/25 backdrop-blur-xs active:border-white text-white active:bg-white/15 font-open-sans text-[10px] xs:text-[11px] font-bold tracking-tight xs:tracking-normal uppercase py-3 px-1 rounded-[6px] transition-all active:scale-[0.98] drop-shadow text-center cursor-pointer whitespace-nowrap"
               >
                 Inquire Bulk Quantity
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -634,12 +635,12 @@ export default function Hero() {
                   <span>BUY NOW</span>
                   <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
-                <button
-                  onClick={openBulkModal}
+                <Link
+                  href="/inquiryform"
                   className="inline-flex items-center border border-white/80 hover:border-white text-white hover:bg-white/15 bg-black/20 backdrop-blur-xs font-open-sans text-xs sm:text-sm font-black tracking-wider uppercase px-5 sm:px-6 py-2.5 rounded-[4px] transition-all active:scale-[0.98] drop-shadow cursor-pointer"
                 >
                   Inquire Bulk Quantity
-                </button>
+                </Link>
               </div>
             </div>
           </div>
