@@ -27,7 +27,7 @@ const CATEGORY_ITEMS = [
   {
     name: "Autocare",
     desc: "Vehicle pressure washing",
-    href: "/",
+    href: "/aquaforceforautocare",
     icon: Car,
     iconColor: "text-[#38bdf8]",
     iconBg: "bg-blue-500/20 border-blue-500/30",

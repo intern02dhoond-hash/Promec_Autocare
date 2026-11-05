@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       `${deliveryAddress || ""}, ${city || ""}, ${state || ""} - ${pincode || ""}`.trim()
     );
     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
-    const invoiceUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://promectools.in"}/invoices/${encodeURIComponent(formattedOrderId)}`;
+    const invoiceUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://promectools.in/aquaforceforautocare"}/invoices/${encodeURIComponent(formattedOrderId)}`;
 
     const mailOptions = {
       from: `"Promec India" <${smtpUser}>`,

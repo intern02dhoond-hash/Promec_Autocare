@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/aquaforceforautocare",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/aquaforceforgigworkers",
@@ -19,10 +26,6 @@
     {
       "source": "/servicepartner",
       "destination": "https://promec-gig-workers.vercel.app/aquaforceforgigworkers"
-    },
-    {
-      "source": "/",
-      "destination": "/aquaforceforautocare"
     },
     {
       "source": "/aquaforceforhomecare",

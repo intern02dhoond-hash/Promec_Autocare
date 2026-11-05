@@ -1493,7 +1493,7 @@ export default function OrderModal({
   const payableAmount = paymentMethod === "10_PERCENT_COD" ? advanceAmount : totalPrice;
 
   const handleShareReferral = () => {
-    const currentUrl = typeof window !== "undefined" ? window.location.href.split("?")[0] : "https://promectools.in";
+    const currentUrl = typeof window !== "undefined" ? window.location.href.split("?")[0] : "https://promectools.in/aquaforceforautocare";
     const shareUrl = `${currentUrl}?ref=FRIEND1000`;
     if (navigator.share) {
       navigator

@@ -318,7 +318,7 @@ export async function executeOrderFulfillment(
                   </div>
 
                   <div style="text-align: center; margin-top: 20px;">
-                    <a href="${invoiceUrl || order.payment?.razorpayInvoiceUrl || `${process.env.NEXT_PUBLIC_BASE_URL || "https://promectools.in"}/invoices/${encodeURIComponent(order.id)}`}" target="_blank" style="display: inline-block; background-color: #2371ec; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 13px; padding: 11px 24px; border-radius: 8px;">
+                    <a href="${invoiceUrl || order.payment?.razorpayInvoiceUrl || `${process.env.NEXT_PUBLIC_BASE_URL || "https://promectools.in/aquaforceforautocare"}/invoices/${encodeURIComponent(order.id)}`}" target="_blank" style="display: inline-block; background-color: #2371ec; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 13px; padding: 11px 24px; border-radius: 8px;">
                       📄 View & Download Official Tax Invoice
                     </a>
                   </div>

@@ -10,6 +10,12 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: "/",
+        destination: "/aquaforceforautocare",
+        basePath: false,
+        permanent: false,
+      },
+      {
         source: "/inquiry-form",
         destination: "/inquiryform",
         permanent: false,

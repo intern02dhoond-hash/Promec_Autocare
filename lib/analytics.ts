@@ -76,7 +76,7 @@ export const trackBeginCheckout = (price: number = 37999, quantity: number = 1, 
   // 3. Virtual Page View: registers in GA4 "Pages and Screens" report as /checkout
   gtag("event", "page_view", {
     page_title: "Checkout - AquaForce",
-    page_location: typeof window !== "undefined" ? `${window.location.origin}/checkout` : "https://promectools.in/checkout",
+    page_location: typeof window !== "undefined" ? `${window.location.origin}/aquaforceforautocare/checkout` : "https://promectools.in/aquaforceforautocare/checkout",
     page_path: "/checkout",
   });
 };
