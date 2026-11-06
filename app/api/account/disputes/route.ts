@@ -73,12 +73,12 @@ export async function POST(req: Request) {
     const testingVideo = (body.testingVideo || body.verificationProof?.testingVideo || "").trim();
     const customerReview = (body.customerReview || body.verificationProof?.customerReview || "").trim();
 
-    if (!unboxingVideo || !testingVideo || !customerReview) {
+    if (!unboxingVideo || !testingVideo) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Warranty claims & replacements strictly require all 3 proofs: 1. Unboxing video of the washer system, 2. Testing video of washer system along with vacuum, and 3. Customer review & feedback.",
+            "Warranty claims & replacements strictly require: 1. Unboxing video of the washer system, and 2. Testing video of washer system along with vacuum.",
         },
         { status: 400 }
       );

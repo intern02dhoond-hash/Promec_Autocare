@@ -126,10 +126,6 @@ export default function DisputeModal({
       setError("Mandatory Requirement 2 missing: Please provide the Testing Video of the washer system along with vacuum.");
       return;
     }
-    if (!customerReview.trim()) {
-      setError("Mandatory Requirement 3 missing: Please provide your Customer Review & Feedback comment or video link.");
-      return;
-    }
     setError("");
     setSubmitting(true);
 
@@ -409,7 +405,7 @@ export default function DisputeModal({
                     5. Mandatory Proofs for Claim &amp; Replacement
                   </h4>
                   <p className="text-[11px] text-amber-800 font-open-sans">
-                    All 3 proofs below are strictly required to approve warranty claims and replacements:
+                    Both proofs below are strictly required to approve warranty claims and replacements:
                   </p>
                 </div>
               </div>
@@ -451,22 +447,6 @@ export default function DisputeModal({
                   <p className="text-[10.5px] text-slate-500">
                     Demonstrate the high pressure spray output and the vacuum suction unit running.
                   </p>
-                </div>
-
-                {/* 3. Customer Review & Feedback */}
-                <div className="p-3 bg-white rounded-xl border border-amber-200/70 space-y-1.5 shadow-2xs">
-                  <label className="font-bold text-slate-900 font-montserrat flex items-center justify-between text-xs">
-                    <span>3. Customer Review &amp; Feedback (Comment or Video Link) *</span>
-                    <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold uppercase">Mandatory</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    placeholder="Share your authentic review and feedback regarding the product performance..."
-                    value={customerReview}
-                    onChange={(e) => setCustomerReview(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#0066cc] rounded-lg p-2.5 text-xs text-slate-900 outline-none transition-all font-open-sans leading-relaxed"
-                  />
                 </div>
               </div>
             </div>

@@ -186,12 +186,6 @@ const sections: PolicySection[] = [
               description:
                 "Record a video showing the washer system being tested along with the vacuum cleaner.",
             },
-            {
-              step: "3",
-              title: "Customer Review & Feedback",
-              description:
-                "Share your experience with the product through a review, feedback, video, or comment.",
-            },
           ].map((item) => (
             <div key={item.step} className="flex items-start gap-3 sm:gap-4">
               <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
