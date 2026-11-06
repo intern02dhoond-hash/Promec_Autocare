@@ -1196,19 +1196,19 @@ function AccountDashboardContent() {
                   )}
                 </div>
 
-                {/* Mandatory Requirements Notice */}
+                {/* Terms Notice */}
                 <div className="mt-3.5 p-3 bg-white/90 rounded-xl border border-amber-200/90 space-y-1.5 text-xs">
                   <span className="font-bold text-amber-950 font-montserrat uppercase text-[10.5px] tracking-wider block">
-                    Mandatory Terms for Warranty Registration, Claims &amp; Replacements:
+                    Terms for Warranty Registration, Claims &amp; Replacements:
                   </span>
                   <ul className="space-y-1 text-[11px] font-open-sans text-slate-700">
                     <li className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
-                      <span><strong>1. Unboxing video</strong> of the washer system</span>
+                      <span><strong>Testing video</strong> of washer system along with vacuum (Mandatory)</span>
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
-                      <span><strong>2. Testing video</strong> of washer system along with vacuum</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                      <span className="text-slate-600"><strong>Unboxing video</strong> of the washer system (Optional)</span>
                     </li>
                   </ul>
                 </div>

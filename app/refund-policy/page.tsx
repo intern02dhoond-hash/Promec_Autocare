@@ -176,7 +176,7 @@ const sections: PolicySection[] = [
           {[
             {
               step: "1",
-              title: "Unboxing Video",
+              title: "Unboxing Video (Optional)",
               description:
                 "Record a clear, continuous video while unboxing the AquaForce washer system and its accessories.",
             },

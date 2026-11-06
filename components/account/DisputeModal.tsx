@@ -118,12 +118,8 @@ export default function DisputeModal({
       setError("Please describe the issue in detail so our team can resolve it immediately.");
       return;
     }
-    if (!unboxingVideo.trim()) {
-      setError("Mandatory Requirement 1 missing: Please provide the Unboxing Video of the washer system.");
-      return;
-    }
     if (!testingVideo.trim()) {
-      setError("Mandatory Requirement 2 missing: Please provide the Testing Video of the washer system along with vacuum.");
+      setError("Please provide the Testing Video of the washer system along with vacuum.");
       return;
     }
     setError("");
@@ -396,37 +392,36 @@ export default function DisputeModal({
               />
             </div>
 
-            {/* 5. Mandatory Verification Checklist (Required for Claims & Replacements) */}
+            {/* 5. Verification Checklist (Required for Claims & Replacements) */}
             <div className="p-3.5 sm:p-4 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-3.5">
               <div className="flex items-center gap-2">
                 <ShieldAlert size={17} className="text-amber-700 shrink-0" />
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-amber-950 font-montserrat">
-                    5. Mandatory Proofs for Claim &amp; Replacement
+                    5. Verification Proofs for Claim &amp; Replacement
                   </h4>
                   <p className="text-[11px] text-amber-800 font-open-sans">
-                    Both proofs below are strictly required to approve warranty claims and replacements:
+                    Testing video is strictly required to verify the issue and approve your replacement:
                   </p>
                 </div>
               </div>
 
               <div className="space-y-3 text-xs font-open-sans">
-                {/* 1. Unboxing Video */}
-                <div className="p-3 bg-white rounded-xl border border-amber-200/70 space-y-1.5 shadow-2xs">
+                {/* 1. Unboxing Video (Optional) */}
+                <div className="p-3 bg-white rounded-xl border border-slate-200/80 space-y-1.5 shadow-2xs">
                   <label className="font-bold text-slate-900 font-montserrat flex items-center justify-between text-xs">
-                    <span>1. Unboxing Video of Washer System *</span>
-                    <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold uppercase">Mandatory</span>
+                    <span>1. Unboxing Video of Washer System</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold uppercase">Optional</span>
                   </label>
                   <input
                     type="text"
-                    required
-                    placeholder="Paste Google Drive / YouTube link, or type 'Sent via WhatsApp to 7387588963'"
+                    placeholder="Paste Google Drive / YouTube link, or type 'Sent via WhatsApp to 7387588963' (Optional)"
                     value={unboxingVideo}
                     onChange={(e) => setUnboxingVideo(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#0066cc] rounded-lg p-2.5 text-xs text-slate-900 outline-none transition-all font-open-sans"
                   />
                   <p className="text-[10.5px] text-slate-500">
-                    Must clearly capture box unsealing and the machine + all accessories inside.
+                    If available, capture box unsealing and the machine + all accessories inside.
                   </p>
                 </div>
 
