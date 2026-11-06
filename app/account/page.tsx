@@ -46,6 +46,7 @@ const OrderTrackingModal = dynamic(() => import("@/components/account/OrderTrack
 const DisputeModal = dynamic(() => import("@/components/account/DisputeModal"), { ssr: false });
 const InvoiceModal = dynamic(() => import("@/components/account/InvoiceModal"), { ssr: false });
 const SupportModal = dynamic(() => import("@/components/account/SupportModal"), { ssr: false });
+const CancelOrderModal = dynamic(() => import("@/components/account/CancelOrderModal"), { ssr: false });
 
 type TabType = "orders" | "disputes" | "support" | "profile";
 
@@ -88,13 +89,14 @@ function AccountDashboardContent() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [orderFilter, setOrderFilter] = useState<"all" | "in_transit" | "delivered" | "cod">("all");
+  const [orderFilter, setOrderFilter] = useState<"all" | "in_transit" | "delivered" | "cancelled" | "cod">("all");
 
   // Modals state
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<PromecOrder | null>(null);
   const [selectedOrderForDispute, setSelectedOrderForDispute] = useState<PromecOrder | null>(null);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<PromecOrder | null>(null);
+  const [selectedOrderForCancel, setSelectedOrderForCancel] = useState<PromecOrder | null>(null);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
   // Profile edit state
@@ -412,10 +414,13 @@ function AccountDashboardContent() {
     if (!matchesSearch) return false;
 
     if (orderFilter === "in_transit") {
-      return o?.orderStatus === "shipped" || Boolean(waybill);
+      return (o?.orderStatus === "shipped" || Boolean(waybill)) && o?.orderStatus !== "delivered" && o?.orderStatus !== "cancelled";
     }
     if (orderFilter === "delivered") {
       return o?.orderStatus === "delivered";
+    }
+    if (orderFilter === "cancelled") {
+      return o?.orderStatus === "cancelled";
     }
     if (orderFilter === "cod") {
       return paymentMethod === "COD_ADVANCE";
@@ -439,8 +444,9 @@ function AccountDashboardContent() {
 
   // Count metrics
   const totalOrdersCount = orders.length;
-  const inTransitCount = orders.filter((o) => o?.orderStatus === "shipped" || Boolean(o?.fulfillment?.waybill)).length;
+  const inTransitCount = orders.filter((o) => (o?.orderStatus === "shipped" || Boolean(o?.fulfillment?.waybill)) && o?.orderStatus !== "delivered" && o?.orderStatus !== "cancelled").length;
   const deliveredCount = orders.filter((o) => o?.orderStatus === "delivered").length;
+  const cancelledCount = orders.filter((o) => o?.orderStatus === "cancelled").length;
   const hasPlacedOrder = orders.some(
     (o) =>
       ["confirmed", "processing", "shipped", "delivered"].includes(o?.orderStatus) ||
@@ -786,6 +792,18 @@ function AccountDashboardContent() {
                 >
                   Delivered ({deliveredCount})
                 </button>
+                {cancelledCount > 0 && (
+                  <button
+                    onClick={() => setOrderFilter("cancelled")}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-montserrat transition-all cursor-pointer shrink-0 ${
+                      orderFilter === "cancelled"
+                        ? "bg-rose-600 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    Cancelled ({cancelledCount})
+                  </button>
+                )}
                 <button
                   onClick={() => setOrderFilter("cod")}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-montserrat transition-all cursor-pointer shrink-0 ${
@@ -889,6 +907,8 @@ function AccountDashboardContent() {
                           >
                             {order.orderStatus === "delivered"
                               ? "Delivered"
+                              : order.orderStatus === "cancelled"
+                              ? "Cancelled"
                               : waybill
                               ? "In-Transit"
                               : "Confirmed"}
@@ -981,30 +1001,91 @@ function AccountDashboardContent() {
                         </div>
                       </div>
 
+                      {/* Cancellation Status Banner */}
+                      {order.orderStatus === "cancelled" && (
+                        <div className="bg-rose-50 border border-rose-200/90 rounded-xl p-3 flex items-start gap-2.5 text-xs text-rose-900 font-open-sans">
+                          <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <span className="font-bold font-montserrat block">Order Cancelled</span>
+                            <p className="text-[11.5px] text-rose-800 leading-relaxed">
+                              {(order as any).cancellation?.reason || "This order was cancelled by customer."}
+                              {waybill && " Forward transit has been stopped and Delhivery Return-to-Origin (RTO) has been initiated."}
+                            </p>
+                            {waybill && (
+                              <p className="text-[11px] font-semibold text-rose-700">
+                                If a Delhivery courier attempts delivery at your doorstep, please refuse handover citing &quot;Order Cancelled&quot;.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Action Bar (Mobile-Optimized Grid) */}
                       <div className="space-y-1.5 pt-1">
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrderForTracking(order)}
-                            className="w-full py-2.5 rounded-xl bg-[#0066cc] hover:bg-[#0052b3] text-white text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                          >
-                            <Truck size={14} className="shrink-0" />
-                            <span className="truncate">Live Tracking</span>
-                          </button>
+                        {order.orderStatus === "cancelled" ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderForTracking(order)}
+                              className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Truck size={14} className="shrink-0" />
+                              <span className="truncate">Tracking History</span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedOrderForDispute(order);
-                              setIsDisputeModalOpen(true);
-                            }}
-                            className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <RotateCcw size={14} className="shrink-0" />
-                            <span className="truncate">Claim / Replace</span>
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsSupportModalOpen(true)}
+                              className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Headphones size={14} className="shrink-0" />
+                              <span className="truncate">Contact Support</span>
+                            </button>
+                          </div>
+                        ) : order.orderStatus === "delivered" ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderForTracking(order)}
+                              className="w-full py-2.5 rounded-xl bg-[#0066cc] hover:bg-[#0052b3] text-white text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Truck size={14} className="shrink-0" />
+                              <span className="truncate">Live Tracking</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedOrderForDispute(order);
+                                setIsDisputeModalOpen(true);
+                              }}
+                              className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <RotateCcw size={14} className="shrink-0" />
+                              <span className="truncate">Return / Replace</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderForTracking(order)}
+                              className="w-full py-2.5 rounded-xl bg-[#0066cc] hover:bg-[#0052b3] text-white text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Truck size={14} className="shrink-0" />
+                              <span className="truncate">Live Tracking</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderForCancel(order)}
+                              className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold font-montserrat uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <AlertCircle size={14} className="shrink-0" />
+                              <span className="truncate">Cancel Order</span>
+                            </button>
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-3 gap-1.5">
                           <button
@@ -1609,14 +1690,16 @@ function AccountDashboardContent() {
                                 </span>
                                 <span
                                   className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full font-montserrat ${
-                                    isDelivered
+                                    order.orderStatus === "cancelled"
+                                      ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                      : isDelivered
                                       ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                       : isShipped
                                       ? "bg-sky-100 text-sky-800 border border-sky-200"
                                       : "bg-amber-100 text-amber-800 border border-amber-200"
                                   }`}
                                 >
-                                  {order.orderStatus.replace("_", " ")}
+                                  {order.orderStatus === "cancelled" ? "Cancelled" : order.orderStatus.replace("_", " ")}
                                 </span>
                               </div>
                               <div className="text-[11px] text-slate-500 font-open-sans mt-1 flex items-center gap-2 flex-wrap">
@@ -1638,24 +1721,47 @@ function AccountDashboardContent() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                               {hasWaybill ? (
                                 <button
                                   type="button"
                                   onClick={() => setSelectedOrderForTracking(order)}
-                                  className="px-3 py-1.5 rounded-lg bg-[#0066cc] hover:bg-[#0052b3] text-white text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                  className="px-2.5 py-1.5 rounded-lg bg-[#0066cc] hover:bg-[#0052b3] text-white text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
                                 >
                                   <Truck size={12} />
-                                  <span>Track Package</span>
+                                  <span>Track</span>
                                 </button>
                               ) : (
                                 <button
                                   type="button"
                                   onClick={() => setActiveTab("orders")}
-                                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1"
+                                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1"
                                 >
-                                  <span>View Order</span>
+                                  <span>View</span>
                                   <ChevronRight size={12} />
+                                </button>
+                              )}
+                              {!isDelivered && order.orderStatus !== "cancelled" && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOrderForCancel(order)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <AlertCircle size={12} />
+                                  <span>Cancel</span>
+                                </button>
+                              )}
+                              {isDelivered && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedOrderForDispute(order);
+                                    setIsDisputeModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <RotateCcw size={12} />
+                                  <span>Return</span>
                                 </button>
                               )}
                             </div>
@@ -1828,6 +1934,21 @@ function AccountDashboardContent() {
         onFileDispute={(ord) => {
           setSelectedOrderForDispute(ord);
           setIsDisputeModalOpen(true);
+        }}
+        onCancelOrder={(ord) => {
+          setSelectedOrderForCancel(ord);
+        }}
+      />
+
+      <CancelOrderModal
+        order={selectedOrderForCancel}
+        isOpen={Boolean(selectedOrderForCancel)}
+        customerPhone={user.phone}
+        onClose={() => setSelectedOrderForCancel(null)}
+        onOrderCancelled={(updatedOrder) => {
+          setOrders((prev) =>
+            prev.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
+          );
         }}
       />
 

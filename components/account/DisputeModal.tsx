@@ -118,7 +118,7 @@ export default function DisputeModal({
       setError("Please describe the issue in detail so our team can resolve it immediately.");
       return;
     }
-    if (!testingVideo.trim()) {
+    if (resolution !== "refund" && !testingVideo.trim()) {
       setError("Please provide the Testing Video of the washer system along with vacuum.");
       return;
     }
@@ -398,10 +398,12 @@ export default function DisputeModal({
                 <ShieldAlert size={17} className="text-amber-700 shrink-0" />
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-amber-950 font-montserrat">
-                    5. Verification Proofs for Claim &amp; Replacement
+                    5. {resolution === "refund" ? "Product Photos / Proof (Optional)" : "Verification Proofs for Claim & Replacement"}
                   </h4>
                   <p className="text-[11px] text-amber-800 font-open-sans">
-                    Testing video is strictly required to verify the issue and approve your replacement:
+                    {resolution === "refund"
+                      ? "Helpful for faster approval. If not available now, you can share via WhatsApp to +91 73875 88963:"
+                      : "Testing video is strictly required to verify the issue and approve your replacement:"}
                   </p>
                 </div>
               </div>
@@ -428,12 +430,16 @@ export default function DisputeModal({
                 {/* 2. Testing Video with Vacuum */}
                 <div className="p-3 bg-white rounded-xl border border-amber-200/70 space-y-1.5 shadow-2xs">
                   <label className="font-bold text-slate-900 font-montserrat flex items-center justify-between text-xs">
-                    <span>2. Testing Video of Washer System Along with Vacuum *</span>
-                    <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold uppercase">Mandatory</span>
+                    <span>2. Testing Video of Washer System Along with Vacuum {resolution !== "refund" && "*"}</span>
+                    {resolution === "refund" ? (
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold uppercase">Optional / WhatsApp</span>
+                    ) : (
+                      <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold uppercase">Mandatory</span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    required
+                    required={resolution !== "refund"}
                     placeholder="Paste video link showing pressure output and vacuum in operation"
                     value={testingVideo}
                     onChange={(e) => setTestingVideo(e.target.value)}
@@ -450,7 +456,10 @@ export default function DisputeModal({
             <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2.5 font-open-sans">
               <ShieldAlert size={16} className="text-[#0066cc] shrink-0 mt-0.5" />
               <span>
-                <strong>Zero Delay Policy:</strong> Under PROMEC India Warranty, genuine replacement parts or replacement units are approved directly without courier return friction.
+                <strong>{resolution === "refund" ? "7-Day Return Guarantee:" : "Zero Delay Policy:"}</strong>{" "}
+                {resolution === "refund"
+                  ? "Eligible orders can be returned within 7 days of delivery. Our logistics team will review and initiate a Delhivery doorstep pickup."
+                  : "Under PROMEC India Warranty, genuine replacement parts or replacement units are approved directly without courier return friction."}
               </span>
             </div>
 
@@ -469,11 +478,11 @@ export default function DisputeModal({
                 className="px-6 py-2.5 text-xs font-bold font-montserrat uppercase tracking-wider bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white rounded-xl shadow-md shadow-rose-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {submitting ? (
-                  <span>Registering Claim...</span>
+                  <span>Processing...</span>
                 ) : (
                   <>
                     <Send size={13} />
-                    <span>Submit Claim Now</span>
+                    <span>{resolution === "refund" ? "Submit Return Request" : "Submit Claim Now"}</span>
                   </>
                 )}
               </button>

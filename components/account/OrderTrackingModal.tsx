@@ -10,6 +10,7 @@ interface OrderTrackingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onFileDispute?: (order: PromecOrder) => void;
+  onCancelOrder?: (order: PromecOrder) => void;
 }
 
 /* ─── helpers to extract live dates/locations from Delhivery scans ─── */
@@ -46,6 +47,7 @@ export default function OrderTrackingModal({
   isOpen,
   onClose,
   onFileDispute,
+  onCancelOrder,
 }: OrderTrackingModalProps) {
   const [copied, setCopied] = useState(false);
   const [liveData, setLiveData] = useState<any>(null);
@@ -180,8 +182,24 @@ export default function OrderTrackingModal({
                 <h3 className="text-base sm:text-lg font-bold font-montserrat text-[#0F1729]">
                   Live Shipment Tracking
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold font-montserrat uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {isDelivered ? "Delivered" : isShipped ? "In Transit" : "Preparing Package"}
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold font-montserrat uppercase tracking-wider ${
+                    order.orderStatus === "cancelled"
+                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                      : isDelivered
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : isShipped
+                      ? "bg-sky-50 text-[#0066cc] border border-sky-200"
+                      : "bg-amber-50 text-amber-700 border border-amber-200"
+                  }`}
+                >
+                  {order.orderStatus === "cancelled"
+                    ? "Cancelled"
+                    : isDelivered
+                    ? "Delivered"
+                    : isShipped
+                    ? "In Transit"
+                    : "Preparing Package"}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-montserrat font-medium tracking-wide">
@@ -209,6 +227,27 @@ export default function OrderTrackingModal({
 
         {/* Scrollable Content */}
         <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-sm font-open-sans bg-white">
+          {/* Order Cancelled Notice */}
+          {order.orderStatus === "cancelled" && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle size={20} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <h4 className="font-bold font-montserrat text-rose-900 text-sm">
+                  Order Cancelled
+                </h4>
+                <p className="text-rose-800 mt-1 leading-relaxed">
+                  {(order as any).cancellation?.reason || "This order has been cancelled by the customer."}
+                  {waybill && " Forward transit has been halted and Delhivery Return-to-Origin (RTO) has been initiated."}
+                </p>
+                {waybill && (
+                  <p className="text-rose-700 font-semibold mt-1.5">
+                    Notice: If a Delhivery courier attempts delivery at your doorstep, please refuse handover citing &quot;Order Cancelled&quot;.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Top Quick Status Highlight */}
           <div className="bg-gradient-to-r from-sky-50 via-blue-50/50 to-white border border-sky-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
             <div>
@@ -216,7 +255,11 @@ export default function OrderTrackingModal({
                 Estimated Delivery Date
               </span>
               <div className="text-lg sm:text-xl font-bold font-montserrat text-[#0F1729] mt-0.5">
-                {isDelivered ? "Delivered to Customer" : estimatedDelivery}
+                {order.orderStatus === "cancelled"
+                  ? "Order Cancelled (RTO in progress)"
+                  : isDelivered
+                  ? "Delivered to Customer"
+                  : estimatedDelivery}
               </div>
               <p className="text-xs text-slate-600 mt-0.5 flex items-center gap-1.5 font-open-sans">
                 <MapPin size={13} className="text-rose-500 shrink-0" />
@@ -365,7 +408,20 @@ export default function OrderTrackingModal({
           )}
 
           <div className="flex items-center gap-2">
-            {onFileDispute && (
+            {!isDelivered && order.orderStatus !== "cancelled" && onCancelOrder && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onCancelOrder(order);
+                }}
+                className="px-3.5 py-2 text-xs font-bold font-montserrat rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+              >
+                Cancel Order
+              </button>
+            )}
+
+            {isDelivered && onFileDispute && (
               <button
                 type="button"
                 onClick={() => {
@@ -374,9 +430,10 @@ export default function OrderTrackingModal({
                 }}
                 className="px-3.5 py-2 text-xs font-bold font-montserrat rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
               >
-                File Replacement / Issue
+                Return / Replace
               </button>
             )}
+
             <button
               type="button"
               onClick={onClose}

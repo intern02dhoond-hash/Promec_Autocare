@@ -31,6 +31,23 @@ function ThankYouContent() {
     }
   }, [searchParams, router]);
 
+  // Auto-hydrate verified customer session so their account immediately shows orders
+  useEffect(() => {
+    const phone = searchParams.get("phone") || searchParams.get("customer_phone");
+    const name = searchParams.get("name") || searchParams.get("fullName");
+    if (phone && typeof window !== "undefined") {
+      const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+      if (cleanPhone) {
+        const userObj = { phone: cleanPhone, fullName: name || "Customer" };
+        try {
+          localStorage.setItem("aquaforce_user", JSON.stringify(userObj));
+          localStorage.setItem("promec_verified_user", JSON.stringify(userObj));
+          window.dispatchEvent(new Event("aquaforce_auth_changed"));
+        } catch (e) {}
+      }
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const numericAmount = Number(amount) || 37999;
 
@@ -198,7 +215,7 @@ function ThankYouContent() {
           {/* Bottom Action Buttons */}
           <div className="mt-6 sm:mt-8 space-y-2.5">
             <Link
-              href={orderId ? `/account?orderId=${orderId}` : "/account"}
+              href={orderId ? `/account?orderId=${orderId}&tab=orders` : "/account?tab=orders"}
               className="w-full block bg-[#0077c8] hover:bg-[#0066b3] active:bg-[#005599] text-white font-bold font-montserrat uppercase tracking-wider py-3.5 sm:py-4 rounded-[12px] shadow-sm hover:shadow-md transition-all cursor-pointer text-xs sm:text-sm text-center"
             >
               TRACK ORDER IN MY ACCOUNT

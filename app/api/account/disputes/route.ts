@@ -73,7 +73,8 @@ export async function POST(req: Request) {
     const testingVideo = (body.testingVideo || body.verificationProof?.testingVideo || "").trim();
     const customerReview = (body.customerReview || body.verificationProof?.customerReview || "").trim();
 
-    if (!testingVideo) {
+    const isRefund = preferredResolution === "refund" || type === "dispute" || type === "return_refund";
+    if (!isRefund && !testingVideo) {
       return NextResponse.json(
         {
           success: false,

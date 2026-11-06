@@ -47,6 +47,37 @@ const getApiPath = (endpoint: string) => {
   return `/aquaforceforautocare${clean}`;
 };
 
+const saveCustomerSessionToStorage = (customerPhone: string, customerFullName: string, addressDetails?: any) => {
+  if (typeof window === "undefined") return;
+  const clean = (customerPhone || "").replace(/\D/g, "").slice(-10);
+  if (!clean || clean.length !== 10) return;
+  try {
+    const userObj = {
+      phone: clean,
+      fullName: (customerFullName || "Customer").trim(),
+    };
+    localStorage.setItem("aquaforce_user", JSON.stringify(userObj));
+    localStorage.setItem("promec_verified_user", JSON.stringify(userObj));
+    if (addressDetails) {
+      localStorage.setItem(`aquaforce_saved_address_${clean}`, JSON.stringify({
+        fullName: userObj.fullName,
+        phone: clean,
+        email: addressDetails.email || "",
+        shippingAddress: addressDetails.deliveryAddress || addressDetails.shippingAddress || "",
+        city: addressDetails.city || "",
+        state: addressDetails.state || "",
+        pincode: addressDetails.pincode || "",
+        gstNumber: addressDetails.gstNumber || "",
+        companyName: addressDetails.companyName || "",
+        customerType: "commercial",
+      }));
+    }
+    window.dispatchEvent(new Event("aquaforce_auth_changed"));
+  } catch (e) {
+    console.warn("Could not save customer session to storage:", e);
+  }
+};
+
 type UpiAppId = "paytm" | "phonepe" | "gpay" | "amazonpay" | "bhim";
 
 const UPI_APP_OPTIONS: {
@@ -2454,13 +2485,15 @@ interface CheckoutSubmitOptions {
             });
           }
 
+          saveCustomerSessionToStorage(formData.phone, customerFullName, formData);
+
           const targetThankYou = window.location.pathname.startsWith("/aquaforceforautocare")
             ? "/aquaforceforautocare/thank-you"
             : "/thank-you";
           const methodLabel = isEmi
             ? `EMI on Card (${selectedEmiBankObj?.name || "Bank"} - ${selectedTenure} Months)`
             : "Credit/Debit Card";
-          window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(totalPrice)}&total_amount=${encodeURIComponent(totalPrice)}&name=${encodeURIComponent(customerFullName)}&method=${encodeURIComponent(methodLabel)}${verifyData.waybill ? `&waybill=${encodeURIComponent(verifyData.waybill)}` : ""}`;
+          window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(totalPrice)}&total_amount=${encodeURIComponent(totalPrice)}&name=${encodeURIComponent(customerFullName)}&phone=${encodeURIComponent(formData.phone)}&method=${encodeURIComponent(methodLabel)}${verifyData.waybill ? `&waybill=${encodeURIComponent(verifyData.waybill)}` : ""}`;
         } catch (err: any) {
           console.error("Card payment verification error:", err);
           setIsVerifyingCardOtp(false);
@@ -2840,10 +2873,12 @@ interface CheckoutSubmitOptions {
           console.warn("Netbanking verify note:", vErr);
         }
 
+        saveCustomerSessionToStorage(formData.phone, formData.fullName, formData);
+
         const targetThankYou = window.location.pathname.startsWith("/aquaforceforautocare")
           ? "/aquaforceforautocare/thank-you"
           : "/thank-you";
-        window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(totalPrice)}&total_amount=${encodeURIComponent(totalPrice)}&name=${encodeURIComponent(formData.fullName)}&method=${encodeURIComponent(`${bank.name} Netbanking`)}${generatedWaybill ? `&waybill=${encodeURIComponent(generatedWaybill)}` : ""}`;
+        window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(totalPrice)}&total_amount=${encodeURIComponent(totalPrice)}&name=${encodeURIComponent(formData.fullName)}&phone=${encodeURIComponent(formData.phone)}&method=${encodeURIComponent(`${bank.name} Netbanking`)}${generatedWaybill ? `&waybill=${encodeURIComponent(generatedWaybill)}` : ""}`;
       };
 
       const options: any = {
@@ -3130,11 +3165,13 @@ interface CheckoutSubmitOptions {
             });
           }
 
+          saveCustomerSessionToStorage(formData.phone, formData.fullName, formData);
+
           const targetThankYou = window.location.pathname.startsWith("/aquaforceforautocare")
             ? "/aquaforceforautocare/thank-you"
             : "/thank-you";
           setTimeout(() => {
-            window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(advanceAmountPaid)}&total_amount=${encodeURIComponent(totalAmount)}&cod_balance=${encodeURIComponent(codBalanceDue)}&name=${encodeURIComponent(formData.fullName)}&method=${encodeURIComponent(isCodOrder ? "10% Cash on Delivery" : isEmiMode ? "No Cost EMI" : "Full Online Payment")}${generatedWaybill ? `&waybill=${encodeURIComponent(generatedWaybill)}` : ""}`;
+            window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(advanceAmountPaid)}&total_amount=${encodeURIComponent(totalAmount)}&cod_balance=${encodeURIComponent(codBalanceDue)}&name=${encodeURIComponent(formData.fullName)}&phone=${encodeURIComponent(formData.phone)}&method=${encodeURIComponent(isCodOrder ? "10% Cash on Delivery" : isEmiMode ? "No Cost EMI" : "Full Online Payment")}${generatedWaybill ? `&waybill=${encodeURIComponent(generatedWaybill)}` : ""}`;
           }, 3000);
         } catch (verifyErr: any) {
           console.error("Payment verification error:", verifyErr);
