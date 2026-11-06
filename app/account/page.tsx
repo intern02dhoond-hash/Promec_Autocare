@@ -441,6 +441,11 @@ function AccountDashboardContent() {
   const totalOrdersCount = orders.length;
   const inTransitCount = orders.filter((o) => o?.orderStatus === "shipped" || Boolean(o?.fulfillment?.waybill)).length;
   const deliveredCount = orders.filter((o) => o?.orderStatus === "delivered").length;
+  const hasPlacedOrder = orders.some(
+    (o) =>
+      ["confirmed", "processing", "shipped", "delivered"].includes(o?.orderStatus) ||
+      o?.payment?.status === "captured"
+  );
   const openDisputesCount = disputes.filter((d) => d.status !== "resolved" && d.status !== "rejected").length;
   const displayName = profile?.fullName || user.fullName || "Customer";
   const initials = displayName.charAt(0).toUpperCase();
@@ -921,10 +926,12 @@ function AccountDashboardContent() {
                               <span>Color: <strong className="text-slate-900 font-montserrat">{item.color}</strong></span>
                             </div>
 
-                            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200/60 px-2 py-0.5 rounded-md w-fit font-medium font-open-sans mt-1">
-                              <ShieldCheck size={11} className="text-amber-600 shrink-0" />
-                              <span>1-Year Pan-India Warranty Active</span>
-                            </div>
+                            {order.orderStatus !== "pending_payment" && order.orderStatus !== "cancelled" && order.orderStatus !== "refunded" && (
+                              <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200/60 px-2 py-0.5 rounded-md w-fit font-medium font-open-sans mt-1">
+                                <ShieldCheck size={11} className="text-amber-600 shrink-0" />
+                                <span>1-Year Pan-India Warranty Active</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -1168,12 +1175,25 @@ function AccountDashboardContent() {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-2 mt-3 text-xs font-open-sans">
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold font-montserrat text-[11px]">
-                    ✓ Status: Active
-                  </span>
-                  <span className="text-slate-600 font-open-sans text-[11px]">
-                    Coverage: 365 Days From Dispatch
-                  </span>
+                  {hasPlacedOrder ? (
+                    <>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold font-montserrat text-[11px]">
+                        ✓ Status: Active
+                      </span>
+                      <span className="text-slate-600 font-open-sans text-[11px]">
+                        Coverage: 365 Days From Dispatch
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-bold font-montserrat text-[11px]">
+                        Status: Inactive (No Orders Placed)
+                      </span>
+                      <span className="text-slate-500 font-open-sans text-[11px]">
+                        Warranty coverage activates automatically once machine order is placed
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* 3 Mandatory Requirements Notice */}
@@ -1295,7 +1315,11 @@ function AccountDashboardContent() {
               </div>
 
               {/* Ownership Summary Chips */}
-              <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 text-center">
+              <div
+                className={`grid ${
+                  hasPlacedOrder ? "grid-cols-3" : "grid-cols-2"
+                } gap-2 mt-4 pt-3 border-t border-slate-100 text-center`}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveTab("orders")}
@@ -1305,18 +1329,20 @@ function AccountDashboardContent() {
                     Orders
                   </span>
                   <span className="text-xs sm:text-sm font-bold font-montserrat text-slate-900 group-hover:text-[#0066cc] mt-0.5 block">
-                    {totalOrdersCount} Placed →
+                    {totalOrdersCount} Placed {totalOrdersCount > 0 ? "→" : ""}
                   </span>
                 </button>
 
-                <div className="bg-slate-50/80 rounded-xl p-2 border border-slate-200/60">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 font-montserrat block">
-                    Warranty
-                  </span>
-                  <span className="text-xs sm:text-sm font-bold font-montserrat text-emerald-600 mt-0.5 block">
-                    1-Year Active
-                  </span>
-                </div>
+                {hasPlacedOrder && (
+                  <div className="bg-slate-50/80 rounded-xl p-2 border border-slate-200/60">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 font-montserrat block">
+                      Warranty
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold font-montserrat text-emerald-600 mt-0.5 block">
+                      1-Year Active
+                    </span>
+                  </div>
+                )}
 
                 <div className="bg-slate-50/80 rounded-xl p-2 border border-slate-200/60">
                   <span className="text-[10px] font-bold uppercase font-montserrat block text-slate-400">
