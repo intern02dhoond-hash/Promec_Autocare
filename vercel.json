@@ -92,6 +92,30 @@
       "destination": "/aquaforceforautocare/inquiryform"
     },
     {
+      "source": "/account",
+      "destination": "/aquaforceforautocare/account"
+    },
+    {
+      "source": "/account/:path*",
+      "destination": "/aquaforceforautocare/account/:path*"
+    },
+    {
+      "source": "/profile",
+      "destination": "/aquaforceforautocare/account?tab=profile"
+    },
+    {
+      "source": "/orders",
+      "destination": "/aquaforceforautocare/account?tab=orders"
+    },
+    {
+      "source": "/track",
+      "destination": "/aquaforceforautocare/account?tab=orders"
+    },
+    {
+      "source": "/order/:path*",
+      "destination": "/aquaforceforautocare/account?orderId=:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/aquaforceforautocare/api/:path*"
     }

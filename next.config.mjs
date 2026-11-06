@@ -92,6 +92,24 @@ const nextConfig = {
         permanent: false,
       },
       {
+        source: "/profile",
+        destination: "/aquaforceforautocare/account?tab=profile",
+        basePath: false,
+        permanent: false,
+      },
+      {
+        source: "/orders",
+        destination: "/aquaforceforautocare/account?tab=orders",
+        basePath: false,
+        permanent: false,
+      },
+      {
+        source: "/track",
+        destination: "/aquaforceforautocare/account?tab=orders",
+        basePath: false,
+        permanent: false,
+      },
+      {
         source: "/:path((?!aquaforceforautocare|aquaforceforgigworkers|aquaforceforservicepartner|servicepartner|_next|favicon.ico).+)",
         destination: "/aquaforceforautocare/:path*",
         basePath: false,

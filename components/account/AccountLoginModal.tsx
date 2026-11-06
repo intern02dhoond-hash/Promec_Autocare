@@ -75,7 +75,10 @@ export default function AccountLoginModal({ onSuccess, onClose }: AccountLoginMo
   }, [step, resendTimer]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+    let digits = e.target.value.replace(/\D/g, "");
+    if (digits.length > 10) {
+      digits = digits.slice(-10);
+    }
     setPhone(digits);
     if (error) setError(null);
   };

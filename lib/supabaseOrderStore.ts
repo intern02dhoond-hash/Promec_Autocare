@@ -271,7 +271,7 @@ export class SupabaseOrderStore implements IOrderStore {
       const { data, error } = await supabase
         .from("promec_orders")
         .select("*")
-        .eq("customer_phone", cleanPhone)
+        .or(`customer_phone.eq.${cleanPhone},customer->>altPhone.eq.${cleanPhone},customer->>phone.eq.${cleanPhone}`)
         .order("created_at", { ascending: false });
 
       if (error || !data || data.length === 0) {

@@ -329,7 +329,8 @@ class LocalFileOrderStore implements IOrderStore {
     const matches: PromecOrder[] = [];
     for (const order of this.memoryCache.values()) {
       const orderPhone = (order.customer?.phone || "").replace(/\D/g, "").slice(-10);
-      if (orderPhone === cleanPhone) {
+      const orderAltPhone = (order.customer?.altPhone || "").replace(/\D/g, "").slice(-10);
+      if (orderPhone === cleanPhone || (orderAltPhone && orderAltPhone === cleanPhone)) {
         matches.push(order);
       }
     }

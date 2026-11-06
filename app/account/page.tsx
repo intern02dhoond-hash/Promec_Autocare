@@ -77,9 +77,9 @@ function AccountDashboardContent() {
   });
   const [authChecked, setAuthChecked] = useState(true);
 
-  // Tab state (defaults to "profile", or "orders" if orderId is specified in URL)
+  // Tab state (defaults to "orders", or queryTab if specified in URL)
   const [activeTab, setActiveTab] = useState<TabType>(
-    queryTab || (queryOrderId ? "orders" : "profile")
+    queryTab || "orders"
   );
 
   // Data states
@@ -289,6 +289,9 @@ function AccountDashboardContent() {
     } catch (e) {
       console.error("Failed to save auth to storage:", e);
     }
+    if (!queryTab) {
+      setActiveTab("orders");
+    }
   };
 
   const handleLogout = () => {
@@ -396,21 +399,26 @@ function AccountDashboardContent() {
 
   // Filtered orders
   const filteredOrders = orders.filter((o) => {
+    const orderId = o?.id || "";
+    const waybill = o?.fulfillment?.waybill || "";
+    const firstProductName = o?.items?.[0]?.productName || "";
+    const paymentMethod = o?.payment?.method || "";
+
     const matchesSearch =
-      o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (o.fulfillment.waybill && o.fulfillment.waybill.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (o.items[0]?.productName && o.items[0].productName.toLowerCase().includes(searchQuery.toLowerCase()));
+      orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (waybill && waybill.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (firstProductName && firstProductName.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (!matchesSearch) return false;
 
     if (orderFilter === "in_transit") {
-      return o.orderStatus === "shipped" || Boolean(o.fulfillment.waybill);
+      return o?.orderStatus === "shipped" || Boolean(waybill);
     }
     if (orderFilter === "delivered") {
-      return o.orderStatus === "delivered";
+      return o?.orderStatus === "delivered";
     }
     if (orderFilter === "cod") {
-      return o.payment.method === "COD_ADVANCE";
+      return paymentMethod === "COD_ADVANCE";
     }
     return true;
   });
@@ -431,8 +439,8 @@ function AccountDashboardContent() {
 
   // Count metrics
   const totalOrdersCount = orders.length;
-  const inTransitCount = orders.filter((o) => o.orderStatus === "shipped" || Boolean(o.fulfillment.waybill)).length;
-  const deliveredCount = orders.filter((o) => o.orderStatus === "delivered").length;
+  const inTransitCount = orders.filter((o) => o?.orderStatus === "shipped" || Boolean(o?.fulfillment?.waybill)).length;
+  const deliveredCount = orders.filter((o) => o?.orderStatus === "delivered").length;
   const openDisputesCount = disputes.filter((d) => d.status !== "resolved" && d.status !== "rejected").length;
   const displayName = profile?.fullName || user.fullName || "Customer";
   const initials = displayName.charAt(0).toUpperCase();
@@ -833,8 +841,8 @@ function AccountDashboardContent() {
                     color: "Yellow",
                     totalAmountInINR: 37999,
                   };
-                  const isCod = order.payment.method === "COD_ADVANCE";
-                  const waybill = order.fulfillment.waybill;
+                  const isCod = order.payment?.method === "COD_ADVANCE";
+                  const waybill = order.fulfillment?.waybill;
                   const isYellow = item.color?.toLowerCase() === "yellow";
                   const productImg = isYellow
                     ? "/aquaforceforautocare/images/products/yellow/1.webp"
@@ -925,17 +933,17 @@ function AccountDashboardContent() {
                           <div className="flex sm:block justify-between items-center">
                             <span className="text-slate-500 text-[11px] font-open-sans">Total Order Value</span>
                             <span className="text-base sm:text-lg font-bold font-montserrat text-slate-900 block">
-                              ₹{order.pricing.finalTotalInINR.toLocaleString("en-IN")}
+                              ₹{(order.pricing?.finalTotalInINR || (order as any).pricing?.total || (order as any).totalAmount || 0).toLocaleString("en-IN")}
                             </span>
                           </div>
 
                           {isCod ? (
                             <div className="mt-1 pt-1 border-t border-slate-200 text-[11px] flex sm:block justify-between">
                               <span className="text-emerald-700 font-medium">
-                                Paid: ₹{Math.round(order.payment.amountPaidInPaise / 100).toLocaleString("en-IN")}
+                                Paid: ₹{Math.round((order.payment?.amountPaidInPaise || 0) / 100).toLocaleString("en-IN")}
                               </span>
                               <span className="text-amber-800 font-bold font-montserrat sm:block">
-                                Due: ₹{Math.round(order.payment.amountDueInPaise / 100).toLocaleString("en-IN")}
+                                Due: ₹{Math.round((order.payment?.amountDueInPaise || 0) / 100).toLocaleString("en-IN")}
                               </span>
                             </div>
                           ) : (
@@ -962,7 +970,7 @@ function AccountDashboardContent() {
                         </div>
 
                         <div className="text-slate-500 font-open-sans text-[11px]">
-                          Destination: <strong className="text-slate-800 font-montserrat">{order.customer.city}, {order.customer.state}</strong>
+                          Destination: <strong className="text-slate-800 font-montserrat">{order.customer?.city || "India"}{order.customer?.state ? `, ${order.customer.state}` : ""}</strong>
                         </div>
                       </div>
 
@@ -1288,14 +1296,18 @@ function AccountDashboardContent() {
 
               {/* Ownership Summary Chips */}
               <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 text-center">
-                <div className="bg-slate-50/80 rounded-xl p-2 border border-slate-200/60">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 font-montserrat block">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("orders")}
+                  className="bg-slate-50/80 hover:bg-sky-50 rounded-xl p-2 border border-slate-200/60 hover:border-sky-300 transition-all cursor-pointer text-center group"
+                >
+                  <span className="text-[10px] font-bold uppercase text-slate-400 group-hover:text-[#0066cc] font-montserrat block">
                     Orders
                   </span>
-                  <span className="text-xs sm:text-sm font-bold font-montserrat text-slate-900 mt-0.5 block">
-                    {totalOrdersCount} Placed
+                  <span className="text-xs sm:text-sm font-bold font-montserrat text-slate-900 group-hover:text-[#0066cc] mt-0.5 block">
+                    {totalOrdersCount} Placed →
                   </span>
-                </div>
+                </button>
 
                 <div className="bg-slate-50/80 rounded-xl p-2 border border-slate-200/60">
                   <span className="text-[10px] font-bold uppercase text-slate-400 font-montserrat block">
@@ -1530,6 +1542,117 @@ function AccountDashboardContent() {
               </div>
             ) : (
               <div className="space-y-3.5">
+                {/* MY ORDERS & SHIPMENTS SUMMARY CARD IN PROFILE */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-montserrat flex items-center gap-1.5">
+                      <Package size={13} className="text-[#0066cc]" />
+                      My Orders & Shipments ({totalOrdersCount})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("orders")}
+                      className="text-[11px] font-bold font-montserrat text-[#0066cc] hover:underline cursor-pointer flex items-center gap-0.5"
+                    >
+                      <span>Manage All Orders</span>
+                      <ChevronRight size={12} />
+                    </button>
+                  </div>
+
+                  {orders.length === 0 ? (
+                    <div className="text-center py-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-3">
+                      <Package size={22} className="text-slate-400 mx-auto mb-1.5" />
+                      <p className="text-xs font-semibold text-slate-700 font-montserrat">No orders linked to +91 {user.phone}</p>
+                      <p className="text-[11px] text-slate-500 font-open-sans mt-0.5">
+                        Orders placed with your primary or alternate number will appear here automatically.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {orders.slice(0, 3).map((order) => {
+                        const isShipped = order.orderStatus === "shipped";
+                        const isDelivered = order.orderStatus === "delivered";
+                        const hasWaybill = Boolean(order.fulfillment?.waybill);
+                        const orderTotal = order.pricing?.finalTotalInINR || (order as any).pricing?.total || 0;
+
+                        return (
+                          <div
+                            key={order.id}
+                            className="p-3 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-[#0066cc]/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-montserrat font-bold text-xs text-slate-900">
+                                  {order.items?.[0]?.productName || "AMEC AquaForce 1400 PSI"}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full font-montserrat ${
+                                    isDelivered
+                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                      : isShipped
+                                      ? "bg-sky-100 text-sky-800 border border-sky-200"
+                                      : "bg-amber-100 text-amber-800 border border-amber-200"
+                                  }`}
+                                >
+                                  {order.orderStatus.replace("_", " ")}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-open-sans mt-1 flex items-center gap-2 flex-wrap">
+                                <span>Order #{order.id}</span>
+                                {orderTotal > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span>₹{orderTotal.toLocaleString("en-IN")}</span>
+                                  </>
+                                )}
+                                {hasWaybill && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-[#0066cc] font-montserrat font-semibold flex items-center gap-0.5">
+                                      <Truck size={11} /> Delhivery: {order.fulfillment?.waybill}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {hasWaybill ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOrderForTracking(order)}
+                                  className="px-3 py-1.5 rounded-lg bg-[#0066cc] hover:bg-[#0052b3] text-white text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Truck size={12} />
+                                  <span>Track Package</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("orders")}
+                                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-montserrat transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <span>View Order</span>
+                                  <ChevronRight size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {orders.length > 3 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("orders")}
+                          className="w-full py-2 text-center text-xs font-bold font-montserrat text-[#0066cc] hover:bg-sky-50/50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          View all {orders.length} orders →
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* CONTACT & PERSONAL INFO CARD */}
                 <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
