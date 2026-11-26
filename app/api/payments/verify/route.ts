@@ -221,16 +221,18 @@ export async function POST(req: Request) {
 
       try {
         let capturedOrAuthPayment: any = null;
+        let failedPayment: any = null;
+        const targetPaymentId = razorpayPaymentId || order.payment.razorpayPaymentId;
 
-        if (razorpayPaymentId) {
+        if (targetPaymentId) {
           try {
-            const directP: any = await razorpay.payments.fetch(razorpayPaymentId);
-            if (
-              directP &&
-              directP.order_id === activeRzpOrderId &&
-              (directP.status === "captured" || directP.status === "authorized")
-            ) {
-              capturedOrAuthPayment = directP;
+            const directP: any = await razorpay.payments.fetch(targetPaymentId);
+            if (directP && directP.order_id === activeRzpOrderId) {
+              if (directP.status === "captured" || directP.status === "authorized") {
+                capturedOrAuthPayment = directP;
+              } else if (directP.status === "failed") {
+                failedPayment = directP;
+              }
             }
           } catch (e: any) {
             console.warn("[Payment Verify] Direct payment fetch warning:", e?.message);
@@ -243,6 +245,12 @@ export async function POST(req: Request) {
           capturedOrAuthPayment = paymentsList.find(
             (p: any) => p.status === "captured" || p.status === "authorized"
           );
+          if (!capturedOrAuthPayment && !failedPayment && !targetPaymentId) {
+            const hasPendingAttempt = paymentsList.some((p: any) => p.status === "created");
+            if (!hasPendingAttempt) {
+              failedPayment = paymentsList.find((p: any) => p.status === "failed");
+            }
+          }
         }
 
         if (!capturedOrAuthPayment && order.payment.qrCodeId) {
@@ -306,6 +314,26 @@ export async function POST(req: Request) {
               shipmentId: fulfillmentResult.shipmentId || order.fulfillment.shipmentId || "",
             });
           }
+        }
+        if (failedPayment) {
+          const failReason =
+            failedPayment.error_description ||
+            failedPayment.error_reason ||
+            "UPI payment failed or was cancelled. Please generate a fresh QR and try again.";
+          await orderStore.updateOrder(order.id, {
+            payment: {
+              ...order.payment,
+              status: "failed",
+              razorpayPaymentId: failedPayment.id,
+              failureReason: failReason,
+            },
+          });
+          return NextResponse.json({
+            success: false,
+            status: "failed",
+            paymentId: failedPayment.id,
+            error: failReason,
+          });
         }
       } catch (fetchOrderErr: any) {
         console.warn("[Payment Verify] Polling Razorpay orders error:", fetchOrderErr.message);

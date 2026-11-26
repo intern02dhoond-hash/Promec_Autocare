@@ -78,7 +78,7 @@ const saveCustomerSessionToStorage = (customerPhone: string, customerFullName: s
   }
 };
 
-type UpiAppId = "paytm" | "phonepe" | "gpay" | "amazonpay" | "bhim";
+type UpiAppId = "paytm" | "phonepe" | "gpay" | "amazonpay" | "bhim" | "cred";
 
 const UPI_APP_OPTIONS: {
   id: UpiAppId;
@@ -102,7 +102,7 @@ const UPI_APP_OPTIONS: {
     avatarBg: "bg-white",
     logo: "/UPI options/paytm_logo.svg.png",
     androidPackage: "net.one97.paytm",
-    iosScheme: "paytmmp://pay",
+    iosScheme: "paytmmp://upi/pay",
   },
   {
     id: "phonepe",
@@ -136,7 +136,7 @@ const UPI_APP_OPTIONS: {
     avatarBg: "bg-[#232f3e]",
     logo: "/UPI options/amazonpay.png",
     androidPackage: "in.amazon.mShop.android.shopping",
-    iosScheme: "amazonpay://pay",
+    iosScheme: "amazonpay://upi/pay",
   },
   {
     id: "bhim",
@@ -147,11 +147,11 @@ const UPI_APP_OPTIONS: {
     avatarBg: "bg-[#eef8ee]",
     logo: "/UPI options/bhim_logo.svg.png",
     androidPackage: "in.org.npci.upiapp",
-    iosScheme: "bhim://pay",
+    iosScheme: "bhim://upi/pay",
   },
 ];
 
-const getAppSpecificUpiUrl = (baseUpiUrl: string, appId: UpiAppId): string => {
+const getAppSpecificUpiUrl = (baseUpiUrl: string, appId?: UpiAppId | "any"): string => {
   const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
   const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
@@ -159,8 +159,18 @@ const getAppSpecificUpiUrl = (baseUpiUrl: string, appId: UpiAppId): string => {
     ? baseUpiUrl.split("?")[1]
     : baseUpiUrl.replace(/^upi:\/\/pay\??/, "");
 
+  if (!appId || appId === "any") {
+    return `upi://pay?${query}`;
+  }
+
   const app = UPI_APP_OPTIONS.find((a) => a.id === appId);
-  if (!app) return baseUpiUrl;
+  if (!app) {
+    if (appId === "cred") {
+      if (isAndroid) return `intent://pay?${query}#Intent;scheme=upi;package=com.dreamplug.androidapp;end`;
+      if (isIOS) return `credpay://upi/pay?${query}`;
+    }
+    return `upi://pay?${query}`;
+  }
 
   if (isAndroid) {
     return `intent://pay?${query}#Intent;scheme=upi;package=${app.androidPackage};end`;
@@ -172,6 +182,52 @@ const getAppSpecificUpiUrl = (baseUpiUrl: string, appId: UpiAppId): string => {
 
   return `upi://pay?${query}`;
 };
+
+async function fetchBrowserRazorpayUpiIntent(params: {
+  keyId: string;
+  razorpayOrderId: string;
+  amountInPaise: number;
+  email?: string;
+  contact?: string;
+  upiApp?: string;
+}): Promise<{ intentUrl: string; paymentId?: string }> {
+  const digits = String(params.contact || "").replace(/\D/g, "").slice(-10);
+  const contact = digits.length === 10 ? digits : "9999999999";
+  const email = (params.email || "").trim() || "customer@promectools.in";
+
+  const body = new URLSearchParams();
+  body.append("key_id", params.keyId);
+  body.append("amount", String(params.amountInPaise));
+  body.append("currency", "INR");
+  body.append("order_id", params.razorpayOrderId);
+  body.append("method", "upi");
+  body.append("_[flow]", "intent");
+  body.append("_[upiqr]", "1");
+  body.append("_[library]", "razorpayjs");
+  body.append("email", email);
+  body.append("contact", contact);
+  if (params.upiApp && params.upiApp !== "any") {
+    const shortcode = params.upiApp === "gpay" ? "google_pay" : params.upiApp === "amazonpay" ? "amazon" : params.upiApp;
+    body.append("_[app]", shortcode);
+  }
+
+  const res = await fetch(
+    `https://api.razorpay.com/v1/payments/create/ajax?key_id=${encodeURIComponent(params.keyId)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok || data?.error || !data?.data?.intent_url) {
+    throw new Error(data?.error?.description || "Unable to initialize Razorpay UPI intent");
+  }
+  return {
+    intentUrl: String(data.data.intent_url),
+    paymentId: data.payment_id ? String(data.payment_id) : undefined,
+  };
+}
 
 const PaymentCardIcon = ({ className = "w-6 h-4 shrink-0" }: { className?: string }) => (
   <svg
@@ -1256,6 +1312,8 @@ export default function OrderModal({
   const [awaitingPaymentData, setAwaitingPaymentData] = useState<{
     orderId: string;
     razorpayOrderId: string;
+    razorpayPaymentId?: string;
+    keyId?: string;
     qrCodeUrl: string;
     upiIntentUrl: string;
     amountInPaise: number;
@@ -1263,15 +1321,32 @@ export default function OrderModal({
     isCod: boolean;
     codBalanceDisplay: string;
     totalDisplay: string;
+    advanceAmountPaid: number;
+    totalAmount: number;
+    codBalanceDue: number;
+    isEmiMode: boolean;
     paymentTitle?: string;
     paymentSubtitle?: string;
     emiMonthlyDisplay?: string;
     bankName?: string;
   } | null>(null);
   const awaitingPaymentTimerRef = useRef<number>(0);
-  const [awaitingPaymentCountdown, setAwaitingPaymentCountdown] = useState<number>(900);
+  const [awaitingPaymentCountdown, setAwaitingPaymentCountdown] = useState<number>(600);
   const [isAwaitingUpi, setIsAwaitingUpi] = useState(false);
+  const [upiPollingFailedMsg, setUpiPollingFailedMsg] = useState<string | null>(null);
+  const [isRefreshingUpiIntent, setIsRefreshingUpiIntent] = useState(false);
+  const [inlineQrOrder, setInlineQrOrder] = useState<{
+    orderId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    keyId: string;
+    upiIntentUrl: string;
+    amountInPaise: number;
+    fingerprint: string;
+  } | null>(null);
+  const [isGeneratingInlineQr, setIsGeneratingInlineQr] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activeRzpPaymentIdRef = useRef<string>("");
   const [bankSearchQuery, setBankSearchQuery] = useState("");
   const [selectedEmiFilter, setSelectedEmiFilter] = useState<"all" | "no_cost" | "credit" | "debit" | "bajaj">("all");
   const [expandedTncOfferId, setExpandedTncOfferId] = useState<string | null>(null);
@@ -1454,32 +1529,44 @@ export default function OrderModal({
     return () => clearTimeout(timer);
   }, [cardNumber, selectedEmiBankObj, checkoutStep, selectedTenure, totalPrice, backendCardEligibility.checkedCardBin, backendCardEligibility.checkedBankCode]);
 
-  // Dynamic 15-Minute QR Session & Countdown Timer
-  const [upiSessionRef, setUpiSessionRef] = useState<string>(() => `AMEC${Date.now().toString(36).toUpperCase()}`);
-  const [qrCountdownSecs, setQrCountdownSecs] = useState<number>(900);
+  // 10-Minute Razorpay UPI QR Session & Countdown Timer
+  const [qrCountdownSecs, setQrCountdownSecs] = useState<number>(600);
 
   // Reset Show QR state and timer when modal closes
   useEffect(() => {
     if (!isOpen) {
       setShowQrCode(false);
-      setQrCountdownSecs(900);
+      setQrCountdownSecs(600);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      setIsAwaitingUpi(false);
+      setAwaitingPaymentData(null);
+      setUpiPollingFailedMsg(null);
+      setInlineQrOrder(null);
     }
   }, [isOpen]);
 
-  // QR Countdown Timer - Only runs when user clicks "Show QR"
+  // Invalidate inline QR order when quantity/variant/color/paymentMethod changes
   useEffect(() => {
-    if (!isOpen || !showQrCode) return;
+    setInlineQrOrder(null);
+    setShowQrCode(false);
+  }, [quantity, selectedVacuumOption, selectedColorIndex, paymentMethod]);
+
+  // QR Countdown Timer - Only runs when user clicks "Show QR" or inline QR is active
+  useEffect(() => {
+    if (!isOpen || (!showQrCode && !inlineQrOrder)) return;
     const timer = setInterval(() => {
       setQrCountdownSecs((prev) => {
         if (prev <= 1) {
-          setUpiSessionRef(`AMEC${Date.now().toString(36).toUpperCase()}`);
-          return 900;
+          return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen, showQrCode]);
+  }, [isOpen, showQrCode, inlineQrOrder]);
 
   const formatQrTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -1950,6 +2037,15 @@ interface CheckoutFormData {
     setIsProcessingCard(false);
     setCardErrorMessage(null);
     setFormErrors({});
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    setIsAwaitingUpi(false);
+    setAwaitingPaymentData(null);
+    setInlineQrOrder(null);
+    setShowQrCode(false);
+    setUpiPollingFailedMsg(null);
     onClose();
   };
 
@@ -3000,6 +3096,384 @@ interface CheckoutSubmitOptions {
     }
   };
 
+  const getInlineQrFingerprint = () =>
+    `${quantity}|${selectedVacuumOption}|${currentColor?.name || ""}|${paymentMethod}|${(formData.phone || "").replace(/\D/g, "")}|${formData.pincode || ""}|${(formData.deliveryAddress || "").trim()}`;
+
+  const completeVerifiedPayment = async ({
+    orderId,
+    razorpayOrderId,
+    payId,
+    signature,
+    isCodOrder,
+    isEmiMode,
+    advanceAmountPaid,
+    totalAmount,
+    codBalanceDue,
+  }: {
+    orderId: string;
+    razorpayOrderId: string;
+    payId: string;
+    signature?: string;
+    isCodOrder: boolean;
+    isEmiMode: boolean;
+    advanceAmountPaid: number;
+    totalAmount: number;
+    codBalanceDue: number;
+  }) => {
+    setPaymentId(payId);
+    setIsProcessingPayment(false);
+    setIsAwaitingUpi(false);
+
+    let generatedWaybill = "";
+
+    try {
+      const verifyRes = await fetch(getApiPath("/api/payments/verify"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          razorpayOrderId,
+          razorpayPaymentId: payId,
+          razorpaySignature: signature,
+        }),
+      });
+      const verifyData = await verifyRes.json();
+
+      if (!verifyRes.ok || !verifyData?.success) {
+        throw new Error(verifyData?.error || "Payment verification failed.");
+      }
+
+      if (verifyData?.waybill) {
+        generatedWaybill = verifyData.waybill;
+      }
+
+      setIsCodSuccess(isCodOrder);
+      setIsSubmitted(true);
+
+      if (typeof window !== "undefined" && (window as any).fbq) {
+        (window as any).fbq("track", "Purchase", {
+          value: advanceAmountPaid,
+          currency: "INR",
+          content_name: `${PRODUCT_DATA.name} (${currentColor.name})`,
+          content_type: "product",
+          num_items: quantity,
+        });
+      }
+
+      saveCustomerSessionToStorage(formData.phone, formData.fullName, formData);
+
+      const targetThankYou = window.location.pathname.startsWith("/aquaforceforautocare")
+        ? "/aquaforceforautocare/thank-you"
+        : "/thank-you";
+      setTimeout(() => {
+        window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderId || razorpayOrderId)}&amount=${encodeURIComponent(advanceAmountPaid)}&total_amount=${encodeURIComponent(totalAmount)}&cod_balance=${encodeURIComponent(codBalanceDue)}&name=${encodeURIComponent(formData.fullName)}&phone=${encodeURIComponent(formData.phone)}&method=${encodeURIComponent(isCodOrder ? "10% Cash on Delivery" : isEmiMode ? "No Cost EMI" : "Full Online Payment")}${generatedWaybill ? `&waybill=${encodeURIComponent(generatedWaybill)}` : ""}`;
+      }, 3000);
+    } catch (verifyErr: any) {
+      console.error("Payment verification error:", verifyErr);
+      setIsSubmitted(false);
+      setIsCodSuccess(false);
+      setIsProcessingPayment(false);
+      setPaymentErrorMessage(
+        verifyErr?.message || "Payment verification failed. Please contact customer support."
+      );
+    }
+  };
+
+  const startUpiStatusPolling = ({
+    orderId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    isCodOrder,
+    isEmiMode,
+    advanceAmountPaid,
+    totalAmount,
+    codBalanceDue,
+    durationSeconds = 600,
+    onTimeoutReturnToDetails = true,
+  }: {
+    orderId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId?: string;
+    isCodOrder: boolean;
+    isEmiMode: boolean;
+    advanceAmountPaid: number;
+    totalAmount: number;
+    codBalanceDue: number;
+    durationSeconds?: number;
+    onTimeoutReturnToDetails?: boolean;
+  }) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    activeRzpPaymentIdRef.current = razorpayPaymentId || "";
+    setUpiPollingFailedMsg(null);
+    awaitingPaymentTimerRef.current = durationSeconds;
+    setAwaitingPaymentCountdown(durationSeconds);
+
+    const pollStartTime = Date.now();
+    const maxDurationMs = durationSeconds * 1000;
+
+    pollingIntervalRef.current = setInterval(async () => {
+      const elapsedSecs = Math.floor((Date.now() - pollStartTime) / 1000);
+      const remainingSecs = Math.max(0, durationSeconds - elapsedSecs);
+      awaitingPaymentTimerRef.current = remainingSecs;
+      setAwaitingPaymentCountdown(remainingSecs);
+
+      if (Date.now() - pollStartTime > maxDurationMs) {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setIsProcessingPayment(false);
+        setIsAwaitingUpi(false);
+        if (onTimeoutReturnToDetails) {
+          setUpiPollingFailedMsg("QR code expired. Click Refresh QR below to generate a new payment QR.");
+        } else {
+          setShowQrCode(false);
+          setInlineQrOrder(null);
+        }
+        return;
+      }
+
+      try {
+        const verifyRes = await fetch(getApiPath("/api/payments/verify"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            razorpayOrderId,
+            razorpayPaymentId: activeRzpPaymentIdRef.current || undefined,
+          }),
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData?.success) {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setIsAwaitingUpi(false);
+          setUpiPollingFailedMsg(null);
+          completeVerifiedPayment({
+            orderId,
+            razorpayOrderId,
+            payId: verifyData.paymentId,
+            isCodOrder,
+            isEmiMode,
+            advanceAmountPaid,
+            totalAmount,
+            codBalanceDue,
+          });
+        } else if (verifyData?.status === "failed") {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setUpiPollingFailedMsg(
+            verifyData.error || "Payment failed or was cancelled in your UPI app. Please generate a fresh QR or retry."
+          );
+        }
+      } catch (pollErr) {
+        console.warn("UPI status check error:", pollErr);
+      }
+    }, 2500);
+  };
+
+  const resolveRealUpiIntentForOrder = async ({
+    orderId,
+    razorpayOrderId,
+    keyId,
+    amountInPaise,
+    upiApp,
+  }: {
+    orderId: string;
+    razorpayOrderId: string;
+    keyId: string;
+    amountInPaise: number;
+    upiApp?: string;
+  }): Promise<{ intentUrl: string; paymentId: string }> => {
+    try {
+      const apiRes = await fetch(getApiPath("/api/payments/upi-intent"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, razorpayOrderId, upiApp }),
+      });
+      const apiData = await apiRes.json().catch(() => null);
+      if (apiRes.ok && apiData?.success && apiData?.upiIntentUrl) {
+        return {
+          intentUrl: String(apiData.upiIntentUrl),
+          paymentId: String(apiData.razorpayPaymentId || ""),
+        };
+      }
+    } catch (serverUpiErr) {
+      console.warn("Server /api/payments/upi-intent fallback note:", serverUpiErr);
+    }
+
+    const browserFallback = await fetchBrowserRazorpayUpiIntent({
+      keyId,
+      razorpayOrderId,
+      amountInPaise,
+      email: formData.email,
+      contact: formData.phone,
+      upiApp,
+    });
+    return {
+      intentUrl: browserFallback.intentUrl,
+      paymentId: browserFallback.paymentId || "",
+    };
+  };
+
+  const handleRefreshUpiIntent = async (targetApp?: UpiAppId | "any"): Promise<string | null> => {
+    if (!awaitingPaymentData || isRefreshingUpiIntent) return null;
+    setIsRefreshingUpiIntent(true);
+    setUpiPollingFailedMsg(null);
+    try {
+      const resolved = await resolveRealUpiIntentForOrder({
+        orderId: awaitingPaymentData.orderId,
+        razorpayOrderId: awaitingPaymentData.razorpayOrderId,
+        keyId: awaitingPaymentData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
+        amountInPaise: awaitingPaymentData.amountInPaise,
+        upiApp: targetApp && targetApp !== "any" ? targetApp : undefined,
+      });
+
+      activeRzpPaymentIdRef.current = resolved.paymentId;
+      setAwaitingPaymentData((prev) =>
+        prev
+          ? {
+              ...prev,
+              upiIntentUrl: resolved.intentUrl,
+              razorpayPaymentId: resolved.paymentId,
+            }
+          : prev
+      );
+
+      startUpiStatusPolling({
+        orderId: awaitingPaymentData.orderId,
+        razorpayOrderId: awaitingPaymentData.razorpayOrderId,
+        razorpayPaymentId: resolved.paymentId,
+        isCodOrder: awaitingPaymentData.isCod,
+        isEmiMode: awaitingPaymentData.isEmiMode,
+        advanceAmountPaid: awaitingPaymentData.advanceAmountPaid,
+        totalAmount: awaitingPaymentData.totalAmount,
+        codBalanceDue: awaitingPaymentData.codBalanceDue,
+        durationSeconds: 600,
+      });
+
+      return resolved.intentUrl;
+    } catch (err: any) {
+      setUpiPollingFailedMsg(err?.message || "Unable to refresh QR code. Please go back and try again.");
+      return null;
+    } finally {
+      setIsRefreshingUpiIntent(false);
+    }
+  };
+
+  const handleShowInlineQr = async () => {
+    if (!currentColor.inStock || isGeneratingInlineQr) return;
+
+    if (!validateFormFields()) {
+      setPaymentErrorMessage("Please complete your delivery details highlighted above to generate your live UPI QR code.");
+      return;
+    }
+
+    const fingerprint = getInlineQrFingerprint();
+    if (inlineQrOrder && inlineQrOrder.fingerprint === fingerprint && qrCountdownSecs > 0 && !upiPollingFailedMsg) {
+      setShowQrCode(true);
+      return;
+    }
+
+    setPaymentErrorMessage("");
+    setIsGeneratingInlineQr(true);
+    setUpiPollingFailedMsg(null);
+
+    try {
+      const res = await fetch(getApiPath("/api/orders/create"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: {
+            fullName: formData.fullName,
+            phone: formData.phone,
+            altPhone: formData.altPhone || "N/A",
+            email: formData.email,
+            deliveryAddress: formData.deliveryAddress,
+            city: formData.city,
+            state: formData.state,
+            pincode: formData.pincode,
+            gstNumber: formData.gstNumber?.trim() ? formData.gstNumber.trim().toUpperCase() : "N/A",
+            customerType: "retail",
+            companyName: formData.companyName?.trim() || undefined,
+          },
+          variantId: selectedVacuumOption === "without" ? "without-vacuum" : "with-vacuum",
+          colorName: currentColor.name,
+          quantity,
+          paymentMethod: "FULL_ONLINE",
+          paymentChannel: "UPI",
+          idempotencyKey: `promec_qr_${formData.phone.replace(/\D/g, "")}_${Date.now()}`,
+        }),
+      });
+
+      const orderData = await res.json();
+      if (!res.ok || !orderData || orderData.error) {
+        throw new Error(orderData?.error || "Failed to generate payment QR.");
+      }
+
+      const activeKeyId = orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!activeKeyId) {
+        throw new Error("Razorpay Key ID is not configured on the server.");
+      }
+
+      let intentUrl = orderData.upiIntentUrl || "";
+      let rzpPayId = orderData.razorpayPaymentId || "";
+
+      if (!intentUrl) {
+        const browserIntent = await fetchBrowserRazorpayUpiIntent({
+          keyId: activeKeyId,
+          razorpayOrderId: orderData.razorpayOrderId || orderData.id,
+          amountInPaise: orderData.amount,
+          email: formData.email,
+          contact: formData.phone,
+        });
+        intentUrl = browserIntent.intentUrl;
+        rzpPayId = browserIntent.paymentId || "";
+      }
+
+      const rzpOrderId = orderData.razorpayOrderId || orderData.id;
+      const orderTotal = currentOfferPrice * quantity;
+
+      setInlineQrOrder({
+        orderId: orderData.orderId,
+        razorpayOrderId: rzpOrderId,
+        razorpayPaymentId: rzpPayId,
+        keyId: activeKeyId,
+        upiIntentUrl: intentUrl,
+        amountInPaise: orderData.amount,
+        fingerprint,
+      });
+      setQrCountdownSecs(600);
+      setShowQrCode(true);
+
+      startUpiStatusPolling({
+        orderId: orderData.orderId,
+        razorpayOrderId: rzpOrderId,
+        razorpayPaymentId: rzpPayId,
+        isCodOrder: false,
+        isEmiMode: false,
+        advanceAmountPaid: orderTotal,
+        totalAmount: orderTotal,
+        codBalanceDue: 0,
+        durationSeconds: 600,
+        onTimeoutReturnToDetails: false,
+      });
+    } catch (err: any) {
+      console.error("Inline QR creation error:", err);
+      setPaymentErrorMessage(err?.message || "Unable to generate live Razorpay UPI QR. Please try again.");
+    } finally {
+      setIsGeneratingInlineQr(false);
+    }
+  };
+
   const handleCheckoutSubmit = async (
     eOrOptions?: React.FormEvent | CheckoutSubmitOptions,
     optionsArg?: CheckoutSubmitOptions
@@ -3017,7 +3491,7 @@ interface CheckoutSubmitOptions {
     const effectiveCustomPayment = options?.selectedCustomPayment ?? selectedCustomPayment;
     const effectiveEmiBank = options?.selectedEmiBank ?? selectedEmiBank;
     const effectiveTenure = options?.selectedTenure ?? selectedTenure;
-    const effectiveUpiApp = options?.selectedUpiApp ?? selectedUpiApp;
+    const explicitUpiApp = options?.selectedUpiApp;
 
     if (!currentColor.inStock) return;
 
@@ -3047,6 +3521,23 @@ interface CheckoutSubmitOptions {
       return;
     }
 
+    const isEmiMode = effectiveOnlinePaymentMode === "EMI" && !isCodOrder;
+
+    // Route EMI checkout into the in-website Custom Checkout EMI flow (razorpay.js)
+    if (isEmiMode) {
+      if (selectedEmiBankObj && selectedEmiPlan) {
+        if (!cardHolderName && formData.fullName) {
+          setCardHolderName(formData.fullName);
+        }
+        setCardErrorMessage(null);
+        setCheckoutStep("emi_add_card");
+      } else {
+        setCheckoutStep("choose_emi");
+      }
+      loadRazorpayScript().catch(() => {});
+      return;
+    }
+
     setPaymentErrorMessage("");
     setIsProcessingPayment(true);
 
@@ -3054,9 +3545,44 @@ interface CheckoutSubmitOptions {
       // Non-blocking SDK preload
       loadRazorpayScript().catch(() => {});
 
-      const isEmiMode = effectiveOnlinePaymentMode === "EMI" && !isCodOrder;
+      const totalAmount = currentOfferPrice * quantity;
+      const fingerprint = getInlineQrFingerprint();
 
-      // 1. Authoritative Server-Side Order Creation (Server calculates true pricing)
+      // Reuse already-created live inline QR order if valid and unmodified
+      if (
+        !isCodOrder &&
+        !explicitUpiApp &&
+        inlineQrOrder &&
+        inlineQrOrder.fingerprint === fingerprint &&
+        qrCountdownSecs > 0 &&
+        !upiPollingFailedMsg
+      ) {
+        setAwaitingPaymentData({
+          orderId: inlineQrOrder.orderId,
+          razorpayOrderId: inlineQrOrder.razorpayOrderId,
+          razorpayPaymentId: inlineQrOrder.razorpayPaymentId,
+          keyId: inlineQrOrder.keyId,
+          qrCodeUrl: "",
+          upiIntentUrl: inlineQrOrder.upiIntentUrl,
+          amountInPaise: inlineQrOrder.amountInPaise,
+          amountDisplay: `₹${totalAmount.toLocaleString("en-IN")}`,
+          isCod: false,
+          codBalanceDisplay: "",
+          totalDisplay: `₹${totalAmount.toLocaleString("en-IN")}`,
+          advanceAmountPaid: totalAmount,
+          totalAmount,
+          codBalanceDue: 0,
+          isEmiMode: false,
+          paymentTitle: "UPI Payment",
+          paymentSubtitle: "Scan QR code or use any UPI app below to pay",
+        });
+        setCheckoutStep("awaiting_payment");
+        setIsProcessingPayment(false);
+        setIsAwaitingUpi(true);
+        return;
+      }
+
+      // 1. Authoritative Server-Side Order Creation + Live Razorpay UPI Intent
       const res = await fetch(getApiPath("/api/orders/create"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3077,14 +3603,10 @@ interface CheckoutSubmitOptions {
           variantId: selectedVacuumOption === "without" ? "without-vacuum" : "with-vacuum",
           colorName: currentColor.name,
           quantity: quantity,
-          paymentMethod: isCodOrder ? "COD_ADVANCE" : isEmiMode ? "EMI" : "FULL_ONLINE",
-          emiDetails: isEmiMode
-            ? {
-                bank: effectiveEmiBank,
-                tenure: effectiveTenure,
-                monthlyAmount: Math.round(totalPrice / (effectiveTenure || 1)),
-              }
-            : undefined,
+          paymentMethod: isCodOrder ? "COD_ADVANCE" : "FULL_ONLINE",
+          paymentChannel: isCodOrder ? "COD_ADVANCE" : "UPI",
+          upiApp: explicitUpiApp,
+          emiDetails: undefined,
           idempotencyKey: `promec_${formData.phone.replace(/\D/g, "")}_${Date.now()}`,
         }),
       });
@@ -3106,150 +3628,31 @@ interface CheckoutSubmitOptions {
       if (!activeKeyId) {
         throw new Error("Razorpay Key ID is not configured on the server.");
       }
-      const totalAmount = currentOfferPrice * quantity;
+
+      const rzpOrderId = orderData.razorpayOrderId || orderData.id;
       const advanceAmountPaid = orderData.advanceAmount ?? (isCodOrder ? advanceAmount : totalAmount);
       const codBalanceDue = orderData.codBalance ?? (isCodOrder ? codBalance : 0);
 
-      // Central Success & Server-Side Verification + Idempotent Fulfillment Handler
-      const handlePaymentSuccess = async (response: any) => {
-        const payId = response.razorpay_payment_id || "";
-        setPaymentId(payId);
-        setIsProcessingPayment(false);
+      // Ensure we have a real Razorpay-registered UPI intent URL (Layer-2 browser fallback if server call didn't return one)
+      let effectiveUpiIntentUrl = orderData.upiIntentUrl || "";
+      let rzpPaymentId = orderData.razorpayPaymentId || "";
 
-        let generatedWaybill = "";
-
-        // Verify payment signature and trigger server-side fulfillment (with double-run protection)
-        try {
-          const verifyRes = await fetch(getApiPath("/api/payments/verify"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId: orderData.orderId,
-              razorpayOrderId: orderData.razorpayOrderId || orderData.id,
-              razorpayPaymentId: payId,
-              razorpaySignature: response.razorpay_signature,
-              customer: {
-                fullName: formData.fullName,
-                phone: formData.phone,
-                email: formData.email,
-                deliveryAddress: formData.deliveryAddress,
-                shippingAddress: formData.deliveryAddress,
-                city: formData.city,
-                state: formData.state,
-                pincode: formData.pincode,
-                altPhone: formData.altPhone,
-                gstNumber: formData.gstNumber,
-              },
-            }),
-          });
-          const verifyData = await verifyRes.json();
-
-          if (!verifyRes.ok || !verifyData?.success) {
-            throw new Error(verifyData?.error || "Payment verification failed.");
-          }
-
-          if (verifyData?.waybill) {
-            generatedWaybill = verifyData.waybill;
-          }
-
-          setIsCodSuccess(isCodOrder);
-          setIsSubmitted(true);
-
-          if (typeof window !== "undefined" && (window as any).fbq) {
-            (window as any).fbq("track", "Purchase", {
-              value: advanceAmountPaid,
-              currency: "INR",
-              content_name: `${PRODUCT_DATA.name} (${currentColor.name})`,
-              content_type: "product",
-              num_items: quantity,
-            });
-          }
-
-          saveCustomerSessionToStorage(formData.phone, formData.fullName, formData);
-
-          const targetThankYou = window.location.pathname.startsWith("/aquaforceforautocare")
-            ? "/aquaforceforautocare/thank-you"
-            : "/thank-you";
-          setTimeout(() => {
-            window.location.href = `${targetThankYou}?payment_id=${encodeURIComponent(payId)}&order_id=${encodeURIComponent(orderData.orderId || orderData.id)}&amount=${encodeURIComponent(advanceAmountPaid)}&total_amount=${encodeURIComponent(totalAmount)}&cod_balance=${encodeURIComponent(codBalanceDue)}&name=${encodeURIComponent(formData.fullName)}&phone=${encodeURIComponent(formData.phone)}&method=${encodeURIComponent(isCodOrder ? "10% Cash on Delivery" : isEmiMode ? "No Cost EMI" : "Full Online Payment")}${generatedWaybill ? `&waybill=${encodeURIComponent(generatedWaybill)}` : ""}`;
-          }, 3000);
-        } catch (verifyErr: any) {
-          console.error("Payment verification error:", verifyErr);
-          setIsSubmitted(false);
-          setIsCodSuccess(false);
-          setIsProcessingPayment(false);
-          setPaymentErrorMessage(
-            verifyErr?.message || "Payment verification failed. Please contact customer support."
-          );
-        }
-      };
-
-      // If No Cost EMI is selected, launch Razorpay Standard Checkout with the order_id created with Promec India PayLater offers
-      if (isEmiMode) {
-        await loadRazorpayScript();
-        if (typeof (window as any).Razorpay !== "function") {
-          throw new Error("Razorpay gateway is initializing. Please try again in a few moments.");
-        }
-
-        const emiOptions: any = {
-          key: activeKeyId,
-          amount: orderData.amount,
-          currency: "INR",
-          name: "PROMEC Aquaforce",
-          description: "Promec India PayLater • No Cost EMI",
-          image: "https://files.catbox.moe/jpksbs.png",
-          order_id: orderData.razorpayOrderId || orderData.id,
-          ...(Array.isArray(orderData.offers) && orderData.offers.length > 0 ? { offers: orderData.offers } : {}),
-          prefill: {
-            name: formData.fullName,
-            email: formData.email,
-            contact: formData.phone.startsWith("+91") ? formData.phone : `+91${formData.phone}`,
-          },
-          config: {
-            display: {
-              blocks: {
-                emi: {
-                  name: "Promec India PayLater (No Cost EMI)",
-                  instruments: [
-                    { method: "emi" },
-                    { method: "card" },
-                  ],
-                },
-              },
-              sequence: ["block.emi", "block.other"],
-              preferences: {
-                show_default_blocks: true,
-              },
-            },
-          },
-          theme: {
-            color: "#0066cc",
-          },
-          handler: handlePaymentSuccess,
-          modal: {
-            ondismiss: () => {
-              setIsProcessingPayment(false);
-            },
-          },
-        };
-
-        const rzp = new (window as any).Razorpay(emiOptions);
-        if (typeof rzp.on === "function") {
-          rzp.on("payment.failed", (errResp: any) => {
-            console.error("Razorpay No-Cost EMI payment failed:", errResp);
-            setPaymentErrorMessage(errResp?.error?.description || "Payment was canceled or declined.");
-            setIsProcessingPayment(false);
-          });
-        }
-        rzp.open();
-        return;
+      if (!effectiveUpiIntentUrl) {
+        const browserIntent = await fetchBrowserRazorpayUpiIntent({
+          keyId: activeKeyId,
+          razorpayOrderId: rzpOrderId,
+          amountInPaise: orderData.amount,
+          email: formData.email,
+          contact: formData.phone,
+          upiApp: explicitUpiApp,
+        });
+        effectiveUpiIntentUrl = browserIntent.intentUrl;
+        rzpPaymentId = browserIntent.paymentId || "";
       }
 
       // === UNIFIED IN-MODAL PAYMENT HUB (SCREEN C) ROUTING (For UPI & COD) ===
       let paymentTitle = "UPI Payment";
       let paymentSubtitle = "Scan QR code or use any UPI app below to pay";
-      let emiMonthlyDisplay = "";
-      let bankNameDisplay = "";
 
       if (isCodOrder) {
         paymentTitle = "COD 10% Advance Deposit";
@@ -3262,12 +3665,11 @@ interface CheckoutSubmitOptions {
       const displayAmount = isCodOrder ? advanceAmountPaid : totalAmount;
       const displayCodBalance = isCodOrder ? codBalanceDue : 0;
 
-      const fallbackUpiUrl = `upi://pay?pa=amectechnology.rzp@rxairtel&pn=AMECTECHNOLOGY&mc=5013&tr=${orderData.orderId || upiSessionRef}&am=${displayAmount}&cu=INR&tn=PROMEC%20Aquaforce%20${orderData.orderId || upiSessionRef}`;
-      const effectiveUpiIntentUrl = orderData.upiIntentUrl || fallbackUpiUrl;
-
       setAwaitingPaymentData({
         orderId: orderData.orderId,
-        razorpayOrderId: orderData.razorpayOrderId || orderData.id,
+        razorpayOrderId: rzpOrderId,
+        razorpayPaymentId: rzpPaymentId,
+        keyId: activeKeyId,
         qrCodeUrl: orderData.qrCodeUrl || "",
         upiIntentUrl: effectiveUpiIntentUrl,
         amountInPaise: orderData.amount,
@@ -3275,87 +3677,41 @@ interface CheckoutSubmitOptions {
         isCod: isCodOrder,
         codBalanceDisplay: isCodOrder ? `₹${displayCodBalance.toLocaleString("en-IN")}` : "",
         totalDisplay: `₹${totalAmount.toLocaleString("en-IN")}`,
+        advanceAmountPaid,
+        totalAmount,
+        codBalanceDue,
+        isEmiMode: false,
         paymentTitle,
         paymentSubtitle,
-        emiMonthlyDisplay,
-        bankName: bankNameDisplay,
       });
 
-      awaitingPaymentTimerRef.current = 900;
-      setAwaitingPaymentCountdown(900);
       setCheckoutStep("awaiting_payment");
       setIsProcessingPayment(false);
       setIsAwaitingUpi(true);
 
-      const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        typeof navigator !== "undefined" ? navigator.userAgent : ""
-      );
+      startUpiStatusPolling({
+        orderId: orderData.orderId,
+        razorpayOrderId: rzpOrderId,
+        razorpayPaymentId: rzpPaymentId,
+        isCodOrder,
+        isEmiMode: false,
+        advanceAmountPaid,
+        totalAmount,
+        codBalanceDue,
+        durationSeconds: 600,
+      });
+
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+      const isAndroid = /Android/i.test(ua);
+      const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
       if (isMobileDevice && (effectiveCustomPayment === "upi" || isCodOrder)) {
-        const targetUrl = getAppSpecificUpiUrl(effectiveUpiIntentUrl, effectiveUpiApp);
-        window.location.href = targetUrl;
-      }
-
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-
-      const pollStartTime = Date.now();
-      pollingIntervalRef.current = setInterval(async () => {
-        const elapsedSecs = Math.floor((Date.now() - pollStartTime) / 1000);
-        const remainingSecs = Math.max(0, 900 - elapsedSecs);
-        awaitingPaymentTimerRef.current = remainingSecs;
-        setAwaitingPaymentCountdown(remainingSecs);
-
-        if (Date.now() - pollStartTime > 900000) {
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          setIsProcessingPayment(false);
-          setIsAwaitingUpi(false);
-          setCheckoutStep("details");
-          setPaymentErrorMessage("Payment timed out. Please try again.");
-          return;
+        if (explicitUpiApp) {
+          window.location.href = getAppSpecificUpiUrl(effectiveUpiIntentUrl, explicitUpiApp);
+        } else if (isAndroid) {
+          // On Android, `upi://pay?...` lets the customer choose any installed UPI app (GPay, CRED, PhonePe, Paytm, BHIM)
+          window.location.href = getAppSpecificUpiUrl(effectiveUpiIntentUrl, "any");
         }
-
-        try {
-          const verifyRes = await fetch(getApiPath("/api/payments/verify"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId: orderData.orderId,
-              razorpayOrderId: orderData.razorpayOrderId || orderData.id,
-              customer: {
-                fullName: formData.fullName,
-                phone: formData.phone,
-                email: formData.email,
-                deliveryAddress: formData.deliveryAddress,
-                shippingAddress: formData.deliveryAddress,
-                city: formData.city,
-                state: formData.state,
-                pincode: formData.pincode,
-                altPhone: formData.altPhone,
-                gstNumber: formData.gstNumber,
-              },
-            }),
-          });
-          const verifyData = await verifyRes.json();
-          if (verifyData?.success) {
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = null;
-            }
-            setIsAwaitingUpi(false);
-            handlePaymentSuccess({
-              razorpay_payment_id: verifyData.paymentId,
-              razorpay_order_id: orderData.razorpayOrderId || orderData.id,
-            });
-          }
-        } catch (pollErr) {
-          console.warn("UPI status check error:", pollErr);
-        }
-      }, 2500);
+      }
     } catch (err: any) {
       console.error("Payment error:", err);
       setPaymentErrorMessage(err.message || "Payment initiation failed. Please try again.");
@@ -3513,8 +3869,11 @@ interface CheckoutSubmitOptions {
                     }
                     setIsProcessingPayment(false);
                     setIsAwaitingUpi(false);
+                    setUpiPollingFailedMsg(null);
                     setCheckoutStep("details");
                     setAwaitingPaymentData(null);
+                    setInlineQrOrder(null);
+                    setShowQrCode(false);
                   }}
                   className="flex items-center gap-1.5 text-slate-700 hover:text-slate-900 font-bold text-xs sm:text-sm font-montserrat cursor-pointer hover:bg-slate-100 px-2 py-1 rounded-lg transition-colors"
                   aria-label="Back to checkout"
@@ -3618,12 +3977,22 @@ interface CheckoutSubmitOptions {
                     )}
                   </div>
 
-                  {/* Tooltip Pill: QR valid for 14:58 mins with upward arrow */}
-                  <div className="relative -mt-1 flex flex-col items-center">
-                    <div className="w-0 h-0 border-x-[5px] border-x-transparent border-b-[5px] border-b-slate-100" />
-                    <div className="bg-slate-100 text-slate-700 text-[11.5px] font-semibold px-3 py-1 rounded-lg select-none whitespace-nowrap shadow-2xs font-open-sans">
-                      QR valid for <span className="font-bold text-slate-900">{formatQrTimer(awaitingPaymentCountdown)}</span> mins
+                  {/* Tooltip Pill: QR valid for 9:58 mins with upward arrow + Refresh QR */}
+                  <div className="relative -mt-1 flex items-center gap-2">
+                    <div className="flex flex-col items-center">
+                      <div className="w-0 h-0 border-x-[5px] border-x-transparent border-b-[5px] border-b-slate-100" />
+                      <div className="bg-slate-100 text-slate-700 text-[11.5px] font-semibold px-3 py-1 rounded-lg select-none whitespace-nowrap shadow-2xs font-open-sans">
+                        QR valid for <span className="font-bold text-slate-900">{formatQrTimer(awaitingPaymentCountdown)}</span> mins
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRefreshUpiIntent()}
+                      disabled={isRefreshingUpiIntent}
+                      className="mt-1 text-[11px] font-bold text-[#005a9c] hover:text-[#004478] bg-blue-50 hover:bg-blue-100 border border-blue-200/70 px-2.5 py-1 rounded-lg cursor-pointer transition-colors disabled:opacity-60"
+                    >
+                      {isRefreshingUpiIntent ? "Refreshing..." : "Refresh QR"}
+                    </button>
                   </div>
 
                   {/* UPI App Quick-Launch Buttons (Overlapping Circular Stack) */}
@@ -3631,10 +4000,15 @@ interface CheckoutSubmitOptions {
                     {UPI_APP_OPTIONS.map((app, idx) => (
                       <div
                         key={app.id}
-                        onClick={() => {
+                        onClick={async () => {
                           setSelectedUpiApp(app.id);
-                          if (awaitingPaymentData.upiIntentUrl) {
-                            window.location.href = getAppSpecificUpiUrl(awaitingPaymentData.upiIntentUrl, app.id);
+                          let urlToLaunch = awaitingPaymentData.upiIntentUrl;
+                          if (upiPollingFailedMsg || awaitingPaymentCountdown <= 0) {
+                            const refreshed = await handleRefreshUpiIntent(app.id);
+                            if (refreshed) urlToLaunch = refreshed;
+                          }
+                          if (urlToLaunch) {
+                            window.location.href = getAppSpecificUpiUrl(urlToLaunch, app.id);
                           }
                         }}
                         style={{ zIndex: 10 * (idx + 1) }}
@@ -3646,41 +4020,81 @@ interface CheckoutSubmitOptions {
                     ))}
                   </div>
 
-                  {/* Mobile UPI Intent Button */}
+                  {/* Mobile UPI Intent Buttons */}
                   {awaitingPaymentData.upiIntentUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (awaitingPaymentData.upiIntentUrl) {
-                          window.location.href = getAppSpecificUpiUrl(awaitingPaymentData.upiIntentUrl, selectedUpiApp);
-                        }
-                      }}
-                      className="w-full max-w-xs bg-[#005a9c] hover:bg-[#004f8a] active:bg-[#004478] text-white font-bold font-montserrat text-sm py-3.5 rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wider sm:hidden"
-                    >
-                      <span>⚡</span>
-                      <span>Pay via {UPI_APP_OPTIONS.find((a) => a.id === selectedUpiApp)?.name || "UPI App"}</span>
-                    </button>
+                    <div className="w-full max-w-xs flex flex-col gap-2 sm:hidden">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          let urlToLaunch = awaitingPaymentData.upiIntentUrl;
+                          if (upiPollingFailedMsg || awaitingPaymentCountdown <= 0) {
+                            const refreshed = await handleRefreshUpiIntent(selectedUpiApp);
+                            if (refreshed) urlToLaunch = refreshed;
+                          }
+                          if (urlToLaunch) {
+                            window.location.href = getAppSpecificUpiUrl(urlToLaunch, selectedUpiApp);
+                          }
+                        }}
+                        className="w-full bg-[#005a9c] hover:bg-[#004f8a] active:bg-[#004478] text-white font-bold font-montserrat text-sm py-3.5 rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wider"
+                      >
+                        <span>⚡</span>
+                        <span>Pay via {UPI_APP_OPTIONS.find((a) => a.id === selectedUpiApp)?.name || "UPI App"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          let urlToLaunch = awaitingPaymentData.upiIntentUrl;
+                          if (upiPollingFailedMsg || awaitingPaymentCountdown <= 0) {
+                            const refreshed = await handleRefreshUpiIntent("any");
+                            if (refreshed) urlToLaunch = refreshed;
+                          }
+                          if (urlToLaunch) {
+                            window.location.href = getAppSpecificUpiUrl(urlToLaunch, "any");
+                          }
+                        }}
+                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold font-montserrat text-xs py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <span>Open Any UPI App (CRED / GPay / Others)</span>
+                      </button>
+                    </div>
                   )}
                 </div>
 
-                {/* Live Status Indicator */}
-                <div className="bg-[#fffbeb] border border-[#fde68a] rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                    <span className="text-sm font-bold text-amber-900 font-montserrat">
-                      Waiting for payment confirmation...
-                    </span>
+                {/* Failure Alert OR Live Status Indicator */}
+                {upiPollingFailedMsg ? (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
+                    <div className="text-sm font-bold text-red-900 font-montserrat">
+                      {upiPollingFailedMsg}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRefreshUpiIntent()}
+                      disabled={isRefreshingUpiIntent}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-bold font-montserrat text-xs py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      {isRefreshingUpiIntent ? "Generating New QR..." : "Generate New Payment QR & Retry"}
+                    </button>
                   </div>
-                  <div className="text-xs text-amber-800/80 font-open-sans leading-relaxed">
-                    Complete the payment in your UPI app. This page will update automatically once your payment is received. Please do not close or refresh this window.
+                ) : (
+                  <div className="bg-[#fffbeb] border border-[#fde68a] rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span className="text-sm font-bold text-amber-900 font-montserrat">
+                        Waiting for payment confirmation...
+                      </span>
+                    </div>
+                    <div className="text-xs text-amber-800/80 font-open-sans leading-relaxed">
+                      Complete the payment in your UPI app. This page will update automatically once your payment is received. Please do not close or refresh this window.
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin block shrink-0" />
+                      <span className="text-[11px] text-amber-700 font-semibold font-open-sans">
+                        Checking payment status...
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin block shrink-0" />
-                    <span className="text-[11px] text-amber-700 font-semibold font-open-sans">
-                      Checking payment status...
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 {/* Security Badge */}
                 <div className="flex items-center justify-center gap-2 text-xs text-slate-400 font-open-sans py-2">
@@ -6043,49 +6457,74 @@ interface CheckoutSubmitOptions {
                         <div className="px-4 pb-5 pt-2 bg-white">
                           {/* Desktop Layout: Exactly matching Image media_1790176929349.png */}
                           <div className="hidden sm:flex items-center justify-center gap-10 py-2">
-                            {/* Left: Dynamic QR Code + 15 min Validity Pill Badge */}
+                            {/* Left: Live Razorpay UPI QR Code + 10 min Validity Pill Badge */}
                             <div className="flex flex-col items-center">
                               <div className="relative w-36 h-36 bg-white flex items-center justify-center shrink-0">
                                 <QRCodeSVG
-                                  value={`upi://pay?pa=amectechnology.rzp@rxairtel&pn=AMECTECHNOLOGY&mc=5013&tr=${upiSessionRef}&am=${totalPrice}&cu=INR&tn=PROMEC%20Aquaforce%20${upiSessionRef}`}
+                                  value={inlineQrOrder?.upiIntentUrl || "upi://pay"}
                                   size={144}
                                   level="M"
                                   className={`w-full h-full transition-all duration-300 ${
-                                    !showQrCode ? "blur-[5px] select-none pointer-events-none opacity-85" : "blur-none"
+                                    !showQrCode || !inlineQrOrder ? "blur-[5px] select-none pointer-events-none opacity-85" : "blur-none"
                                   }`}
                                 />
 
-                                {/* Show QR Button Overlay (Exact Match to media_1790177917865.png) */}
-                                {!showQrCode && (
+                                {/* Show QR Button Overlay */}
+                                {(!showQrCode || !inlineQrOrder) && (
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setQrCountdownSecs(900);
-                                        setUpiSessionRef(`AMEC${Date.now().toString(36).toUpperCase()}`);
-                                        setShowQrCode(true);
-                                      }}
-                                      className="bg-white border border-slate-700/80 hover:border-black text-slate-900 rounded-[8px] px-3.5 py-1.5 flex items-center gap-2 shadow-xs hover:bg-slate-50 transition-all cursor-pointer font-montserrat active:scale-95"
+                                      onClick={() => handleShowInlineQr()}
+                                      disabled={isGeneratingInlineQr}
+                                      className="bg-white border border-slate-700/80 hover:border-black text-slate-900 rounded-[8px] px-3.5 py-1.5 flex items-center gap-2 shadow-xs hover:bg-slate-50 transition-all cursor-pointer font-montserrat active:scale-95 disabled:opacity-60"
                                     >
-                                      <svg className="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                                        <circle cx="12" cy="12" r="3.2" fill="currentColor" />
-                                      </svg>
+                                      {isGeneratingInlineQr ? (
+                                        <span className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin block" />
+                                      ) : (
+                                        <svg className="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                                          <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+                                        </svg>
+                                      )}
                                       <span className="text-xs sm:text-[13px] font-semibold tracking-tight text-slate-900 select-none">
-                                        Show QR
+                                        {isGeneratingInlineQr ? "Generating..." : "Show QR"}
                                       </span>
                                     </button>
                                   </div>
                                 )}
                               </div>
 
-                              {/* Tooltip Pill: QR valid for 14:58 mins with upward arrow (Only appears after clicking Show QR) */}
-                              {showQrCode && (
-                                <div className="relative mt-2.5 flex flex-col items-center">
-                                  <div className="w-0 h-0 border-x-[5px] border-x-transparent border-b-[5px] border-b-slate-100" />
-                                  <div className="bg-slate-100 text-slate-700 text-[11.5px] font-semibold px-3 py-1 rounded-lg select-none whitespace-nowrap shadow-2xs font-open-sans">
-                                    QR valid for <span className="font-bold text-slate-900">{formatQrTimer(qrCountdownSecs)}</span> mins
+                              {/* Tooltip Pill: QR valid for 9:58 mins with upward arrow (Only appears after clicking Show QR) */}
+                              {showQrCode && inlineQrOrder && (
+                                <div className="relative mt-2.5 flex items-center gap-2">
+                                  <div className="flex flex-col items-center">
+                                    <div className="w-0 h-0 border-x-[5px] border-x-transparent border-b-[5px] border-b-slate-100" />
+                                    <div className="bg-slate-100 text-slate-700 text-[11.5px] font-semibold px-3 py-1 rounded-lg select-none whitespace-nowrap shadow-2xs font-open-sans">
+                                      {qrCountdownSecs > 0 ? (
+                                        <>QR valid for <span className="font-bold text-slate-900">{formatQrTimer(qrCountdownSecs)}</span> mins</>
+                                      ) : (
+                                        <span className="text-red-600 font-bold">QR expired</span>
+                                      )}
+                                    </div>
                                   </div>
+                                  {qrCountdownSecs <= 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleShowInlineQr()}
+                                      disabled={isGeneratingInlineQr}
+                                      className="text-[11px] font-bold text-[#005a9c] hover:text-[#004478] bg-blue-50 hover:bg-blue-100 border border-blue-200/70 px-2.5 py-1 rounded-lg cursor-pointer transition-colors disabled:opacity-60"
+                                    >
+                                      Refresh
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Waiting for payment confirmation indicator */}
+                              {showQrCode && inlineQrOrder && qrCountdownSecs > 0 && (
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                  <span className="text-[10.5px] text-amber-700 font-semibold font-open-sans">Waiting for payment confirmation</span>
                                 </div>
                               )}
                             </div>
